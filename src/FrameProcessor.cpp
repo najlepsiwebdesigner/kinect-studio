@@ -7,9 +7,6 @@
 
 
 #include "parallel_threshold.h"
-#include "fastBilateral.hpp"
-
-
 
 
 namespace app {
@@ -55,7 +52,6 @@ namespace app {
                 parallel_for_( cv::Range(0,temp_frame.thresholdedDepthMat.rows) , Parallel_Threshold(temp_frame.thresholdedDepthMat, 400, 6000)) ;
 
 
-//                cv_extend::bilateralFilter(temp_frame.thresholdedDepthMat.clone(), temp_frame.thresholdedDepthMat, 1000 ,500);
 
 
 
