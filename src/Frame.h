@@ -11,6 +11,7 @@ namespace app {
         cv::Mat rgbMat;
         cv::Mat depthMat;
         cv::Mat thresholdedDepthMat;
+        cv::Mat baMat;
         long long order;
         bool unread;
         bool processed;
@@ -19,6 +20,7 @@ namespace app {
                 rgbMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
                 depthMat(cv::Size(640, 480), CV_16UC1),
                 thresholdedDepthMat(cv::Size(640,480), CV_8UC1),
+                baMat(cv::Size(640,480), CV_8UC1),
                 unread(true)
         {
 

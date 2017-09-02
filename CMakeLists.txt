@@ -20,7 +20,7 @@ ADD_DEFINITIONS(
 # # Find packages needed to build library
 find_package( OpenCV REQUIRED )
 find_package( Boost COMPONENTS system filesystem date_time REQUIRED)
-# find_package(PCL 1.2 REQUIRED)
+find_package(PCL 1.7 REQUIRED)
 
 
 # # libfreenect support
@@ -29,7 +29,7 @@ find_package( Boost COMPONENTS system filesystem date_time REQUIRED)
 # include_directories("/usr/include/libusb-1.0")
 # include_directories("/usr/local/include/libfreenect")
 include_directories( ${Boost_INCLUDE_DIRS} )
-# include_directories(${PCL_INCLUDE_DIRS})
+ include_directories(${PCL_INCLUDE_DIRS})
 include_directories(BEFORE /usr/local/opt/qt5/include)
 
 # add_custom_target(run
@@ -37,8 +37,8 @@ include_directories(BEFORE /usr/local/opt/qt5/include)
 #     WORKING_DIRECTORY ${CMAKE_PROJECT_DIR}
 # )
 
-# link_directories(${PCL_LIBRARY_DIRS})
-# add_definitions(${PCL_DEFINITIONS})
+ link_directories(${PCL_LIBRARY_DIRS})
+ add_definitions(${PCL_DEFINITIONS})
 
 
 
@@ -68,5 +68,5 @@ target_link_libraries(${PROJECT} Qt5::Widgets)
 
 target_link_libraries(${PROJECT} ${Boost_LIBRARIES})
 
-# target_link_libraries (${PROJECT} ${PCL_LIBRARIES})
+ target_link_libraries (${PROJECT} ${PCL_LIBRARIES})
 # target_link_libraries (${PROJECT} ${LIBUSB_1_LIB})

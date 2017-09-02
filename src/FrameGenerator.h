@@ -13,7 +13,7 @@ namespace app {
 
     class FrameGenerator {
     public:
-        int frequency = 30; // 0 = infinite
+        int frequency = 0; // 0 = infinite
         std::mutex & current_frame_mutex;
         app::Frame & current_frame;
 
