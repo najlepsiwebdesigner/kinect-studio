@@ -203,7 +203,7 @@ void dilation(Mat & image) {
 
 
 void sobel(Mat & src_gray) {
-    GaussianBlur( src_gray, src_gray, Size(3,3), 0, 0, BORDER_DEFAULT );
+    GaussianBlur( src_gray, src_gray, Size(9,9), 0, 0, BORDER_DEFAULT );
     Mat grad;
     int scale = 1;
     int delta = 0;

@@ -12,6 +12,10 @@ namespace app {
         cv::Mat depthMat;
         cv::Mat thresholdedDepthMat;
         cv::Mat baMat;
+
+        std::vector<cv::KeyPoint> keypoints;
+        cv::Mat descriptors;
+
         long long order;
         bool unread;
         bool processed;

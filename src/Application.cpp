@@ -117,10 +117,15 @@ void matchAndDraw(const cv::Mat & img_1, const cv::Mat & img_2, cv::Mat img_1_re
 bool app::Application::is_running = false;
 
 void app::Application::start() {
+
+
+
+
     cv::namedWindow("Depth");
     cv::namedWindow("Video");
     cv::namedWindow("Thresh");
     cv::namedWindow("Good Matches");
+    cv::namedWindow("Keypoints");
 
 
     // holds latest captured frame from data source
@@ -171,15 +176,22 @@ void app::Application::start() {
                 cv::Mat baf(cv::Size(640, 480), CV_8UC1);
                 processed_frame.baMat.convertTo(baf, CV_8UC1, 1);
 
-
-
                 cv::imshow("Video", processed_frame.rgbMat);
                 cv::imshow("Depth", depthf);
-//                cv::imshow("Thresh", threshf);
 
-                cv::medianBlur(baf, baf, 3);
+                cv::Mat img_keypoints;
 
-                cv::imshow("BA",baf);
+                drawKeypoints( processed_frame.rgbMat, processed_frame.keypoints, img_keypoints, cv::Scalar::all(-1), cv::DrawMatchesFlags::DEFAULT );
+
+
+
+//                cv::Mat sobelf = baf.clone();
+//                sobel(sobelf);
+//                sobel(sobelf);
+
+                cv::imshow("Keypoints", img_keypoints);
+
+//                cv::imshow("BA",baf);
 
 //                if (is_first) {
 //                    is_first = false;

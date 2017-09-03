@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.1)
 
 set(PROJECT "app")
 
@@ -12,7 +12,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_AUTOMOC ON)
 
 ADD_DEFINITIONS(
-    -std=c++11 # Or -std=c++0x
+    -std=c++14 # Or -std=c++0x
     # O
 )
 
@@ -48,9 +48,6 @@ include_directories(BEFORE /usr/local/opt/qt5/include)
 
 
 
-
-
-
 # Find the QtWidgets library
 find_package(Qt5Widgets)
 
@@ -70,3 +67,10 @@ target_link_libraries(${PROJECT} ${Boost_LIBRARIES})
 
  target_link_libraries (${PROJECT} ${PCL_LIBRARIES})
 # target_link_libraries (${PROJECT} ${LIBUSB_1_LIB})
+
+
+
+set_target_properties(${PROJECT} PROPERTIES
+        CXX_STANDARD_REQUIRED 14
+        CXX_EXTENSIONS ON
+        )

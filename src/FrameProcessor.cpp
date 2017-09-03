@@ -12,8 +12,37 @@
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
 
+#include <math.h>
 
-void generatePointCloud(const cv::Mat & rgbMat, const cv::Mat & depthMat, pcl::PointCloud<pcl::PointXYZRGB>::Ptr & pointcloud) {
+
+
+
+
+
+double getAngle (pcl::PointXYZRGB point1, pcl::PointXYZRGB point2)
+{
+    const double PI = 3.14159265358979323846;
+    double a, b, c;
+    double theta;
+    a = sqrt (point1.x * point1.x + point1.y * point1.y + point1.z * point1.z);
+    b = sqrt ((point1.x - point2.x) * (point1.x - point2.x) +
+              (point1.y - point2.y) * (point1.y - point2.y) +
+              (point1.z - point2.z) * (point1.z - point2.z));
+    c = sqrt (point2.x * point2.x + point2.y * point2.y + point2.z * point2.z);
+
+    if (a != 0 && b != 0)
+    {
+        theta = acos ((a * a + b * b - c * c) / (2 * a * b)) * 180 / PI;
+    }
+    else
+    {
+        theta = 0;
+    }
+    return theta;
+}
+
+
+void generatePointCloud(const cv::Mat & rgbMat, const cv::Mat & depthMat, pcl::PointCloud<pcl::PointXYZRGB> & pointcloud) {
     const float focalLength = 525;
     const float centerX = 319.5;
     const float centerY = 239.5;
@@ -24,7 +53,8 @@ void generatePointCloud(const cv::Mat & rgbMat, const cv::Mat & depthMat, pcl::P
     {
         for (int u = 0; u < 640; ++u, ++depth_idx)
         {
-            pcl::PointXYZRGB & pt = pointcloud->points[depth_idx];
+            pcl::PointXYZRGB & pt = pointcloud.points[depth_idx];
+
             pt.z = depthMat.at<uint16_t>(v,u) / scalingFactor;
             pt.x = (static_cast<float> (u) - centerX) * pt.z / focalLength;
             pt.y = (static_cast<float> (v) - centerY) * pt.z / focalLength;
@@ -33,73 +63,38 @@ void generatePointCloud(const cv::Mat & rgbMat, const cv::Mat & depthMat, pcl::P
             pt.r = rgbMat.at<cv::Vec3b>(v,u)[2];
         }
     }
-
 }
 
 
+void generateBearingAngleImageFromPointCloud(const pcl::PointCloud<pcl::PointXYZRGB> & pointcloud, cv::Mat & baMat) {
+    int width = pointcloud.width;
+    int height = pointcloud.height;
+    unsigned int size = width * height;
+    double theta, theta2;
+    uint8_t gray;
 
-void computeBearingAngleImage(const cv::Mat & depthMat, cv::Mat & output) {
-
-    int depth_idx = 0;
-    const double PI = 3.14159265358979323846;
-
-#pragma  omp parallel for
-    for (unsigned int v = 0; v < 480; ++v)
-    {
-        for (unsigned int u = 0; u < 640; ++u, ++depth_idx)
+    // primary transformation process
+    for (int i = 0; i < height - 1; ++i) {
+        for (int j = 0; j < width - 1; ++j)
         {
+            theta = getAngle(pointcloud.points[i * width + j + 1], pointcloud.points[(i + 1) * width + j]);
+            theta2 = getAngle(pointcloud.points[i * width + j + 2], pointcloud.points[(i + 2) * width + j]);
+//            theta2 = theta;
 
-            int point1_z = depthMat.at<uint16_t>(v,u);
-
-            if (point1_z != 0) {
-
-                int point1_x = u;
-                int point1_y = v;
-
-
-                int point2_x = u;
-                int point2_y = v + 1;
-                int point2_z = depthMat.at<uint16_t>(v + 1, u + 1);
-
-
-                double a, b, c;
-                double theta;
-                a = sqrt(point1_x * point1_x + point1_y * point1_y + point1_z * point1_z);
-                b = sqrt((point1_x - point2_x) * (point1_x - point2_x)
-                         + (point1_y - point2_y) * (point1_y - point2_y)
-                         + (point1_z - point2_z) * (point1_z - point2_z));
-                c = sqrt(point2_x * point2_x + point2_y * point2_y + point2_z * point2_z);
-
-                if (a != 0 && b != 0) {
-                    theta = acos((a * a + b * b - c * c) / (2 * a * b)) * 180 / PI;
-                } else {
-                    theta = 0;
-                }
-
-                double gray;
-                gray = theta / 180 * 255;
-
-
-                output.at<uint16_t>(v, u) = gray;
-            } else {
-                output.at<uint16_t>(v, u) = 0;
-            }
-
-
+            // based on the theta, calculate the gray value of every pixel point
+            baMat.at<uint8_t>(i + 1, j) = (uint8_t) ((theta + theta2)/2) * 255 / 180;
         }
     }
-
-
-
-//    depthMat.copyTo(output);
-
-
 }
+
+
 
 
 
 namespace app {
     void FrameProcessor::run() {
+        using namespace cv;
+        using namespace cv::xfeatures2d;
 
         std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
         long long frame_processing_average_milliseconds = 0;
@@ -137,32 +132,119 @@ namespace app {
                 start = std::chrono::high_resolution_clock::now();
 
 //////////////////////////// processing starts here
-                {
-                    // lock currently processed frame
-                    std::lock_guard<std::mutex> mutex_guard(processed_frame_mutex);
 
 
 
-                    // ### opencv fast parallel Thresholding - 0 ms
+
+
+                    /// ### opencv fast parallel Thresholding - 0 ms
                     temp_frame.thresholdedDepthMat = temp_frame.depthMat.clone();
                     parallel_for_(cv::Range(0, temp_frame.thresholdedDepthMat.rows),
                                   Parallel_Threshold(temp_frame.thresholdedDepthMat, 400, 8000));
 
 
 
-                    // ### generate point cloud - 11 ms
-                    // generatePointCloud(temp_frame.rgbMat, temp_frame.depthMat, cloud_ptr);
+                    /// ### HSV MODEL
+//                    cv::cvtColor(temp_frame.rgbMat, temp_frame.rgbMat, cv::COLOR_BGR2HSV);
+//
+//                    std::vector<cv::Mat> hsv_planes;
+//                    cv::split(temp_frame.rgbMat, hsv_planes);
+//                    Mat h = hsv_planes[0]; // H channel
+//                    Mat s = hsv_planes[1]; // S channel
+//                    Mat v = hsv_planes[2]; // V channel
+//
+//                    temp_frame.rgbMat = v;
 
-                    temp_frame.baMat = temp_frame.thresholdedDepthMat.clone();
-                    computeBearingAngleImage(temp_frame.baMat.clone(), temp_frame.baMat);
 
-                    // ### bilateral filter is crazy slow
-//                    cv_extend::bilateralFilter(temp_frame.baMat.clone(),
-//                                               temp_frame.baMat, 100 ,10);
 
+                    /// ### bilateral filter is crazy slow ± 50 ms
+//                    cv_extend::bilateralFilter(temp_frame.depthMat.clone(),
+//                                               temp_frame.depthMat, 100 ,10);
+
+
+                    /// ### generate point cloud - 11 ms
+//                    generatePointCloud(temp_frame.rgbMat, temp_frame.depthMat, *cloud_ptr);
+
+
+                    /// ### generate BA image
+//                    generateBearingAngleImageFromPointCloud(*cloud_ptr,temp_frame.baMat);
+
+
+
+                    /// ### CLAHE https://stackoverflow.com/questions/24341114/simple-illumination-correction-in-images-opencv-c/24341809#24341809
+                    // READ RGB color image and convert it to Lab
+                    cv::Mat bgr_image = temp_frame.rgbMat;
+                    cv::Mat lab_image;
+                    cv::cvtColor(bgr_image, lab_image, CV_BGR2Lab);
+
+                    // Extract the L channel
+                    std::vector<cv::Mat> lab_planes(3);
+                    cv::split(lab_image, lab_planes);  // now we have the L image in lab_planes[0]
+
+                    // apply the CLAHE algorithm to the L channel
+                    cv::Ptr<cv::CLAHE> clahe = cv::createCLAHE();
+                    clahe->setClipLimit(4);
+                    cv::Mat dst;
+                    clahe->apply(lab_planes[0], dst);
+
+                    // Merge the the color planes back into an Lab image
+                    dst.copyTo(lab_planes[0]);
+                    cv::merge(lab_planes, lab_image);
+
+                    // convert back to RGB
+                    cv::Mat image_clahe;
+                    cv::cvtColor(lab_image, image_clahe, CV_Lab2BGR);
+
+                    temp_frame.rgbMat = image_clahe;
+
+
+                    /// ### feature detection
+//                     Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
+                    // Ptr<AKAZE> detector = AKAZE::create();
+                    Ptr<ORB> detector = ORB::create();
+                    // Ptr<SIFT> detector = SIFT::create();
+                    // Ptr<MSER> detector = MSER::create();
+                    // Ptr<BRISK> detector = BRISK::create();
+                    // Ptr<KAZE> detector = KAZE::create();
+//                    Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
+
+                    std::vector<KeyPoint> keypoints;
+                    detector->detect( temp_frame.rgbMat, keypoints);
+                    temp_frame.keypoints = keypoints;
+
+
+//                    for (const auto & keypoint : keypoints) {
+//                        std::cout << keypoint.pt.x << std::endl;
+//                    }
+
+
+                    /// ### feature description
+//                    Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
+//
+//                    Mat descriptors;
+//
+//                    extractor->compute(processed_frame.rgbMat, keypoints, processed_frame.descriptors);
+
+
+
+
+
+
+
+
+//                    cv::imwrite("ba/" + std::to_string(temp_frame.order) + ".png", temp_frame.baMat);
+
+
+//                    temp_frame.baMat = temp_frame.thresholdedDepthMat.clone();
+//                    computeBearingAngleImage(temp_frame.baMat.clone(), temp_frame.baMat)
+
+
+
+                {
+                    // lock currently processed frame
+                    std::lock_guard<std::mutex> mutex_guard(processed_frame_mutex);
                     processed_frame = temp_frame;
                     processed_frame.processed = true;
-
 
                 }
 //////////////////////////// processing ends here

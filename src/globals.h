@@ -19,4 +19,7 @@
 
 #include "Frame.h"
 
+
+void sobel(cv::Mat & src_gray);
+
 #endif  // UTILS_H
