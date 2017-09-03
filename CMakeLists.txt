@@ -57,7 +57,7 @@ set(CMAKE_AUTOUIC ON)
 file(GLOB_RECURSE SRCS src/*.cpp)
 
 # Tell CMake to create the helloworld executable
-add_executable(${PROJECT} WIN32 ${SRCS} src/globals.cpp src/Application.cpp src/Application.h src/Frame.h src/FrameGenerator.cpp src/FrameGenerator.h src/FrameProcessor.cpp src/FrameProcessor.h)
+add_executable(${PROJECT} WIN32 ${SRCS})
 
 target_link_libraries(${PROJECT} ${OpenCV_LIBS})
 # Use the Widgets module from Qt 5.
