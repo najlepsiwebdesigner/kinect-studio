@@ -10,6 +10,7 @@
 #include "Frame.h"
 #include "FrameGenerator.h"
 #include "FrameProcessor.h"
+#include "FrameMatcher.h"
 
 namespace app {
     class Application {

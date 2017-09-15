@@ -284,7 +284,7 @@ namespace app {
 
 //////////////////////////// processing starts here
 
-//                thresholdDepth(temp_frame);
+                thresholdDepth(temp_frame);
 
                 /// ### generate point cloud ± 11 ms
                 computePointCloud(temp_frame);
