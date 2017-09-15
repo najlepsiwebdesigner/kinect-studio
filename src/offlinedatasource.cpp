@@ -13,6 +13,10 @@ bool OfflineDataSource::getVideoAndDepth(cv::Mat& video, cv::Mat& depth) {
     cv::Mat videoImage = imread(rgb_filenames[iteration], CV_LOAD_IMAGE_COLOR);
     cv::Mat depthImage = imread(depth_filenames[iteration], cv::IMREAD_UNCHANGED);
 
+//    std::cout << rgb_filenames[iteration] << std::endl;
+//    std::cout << depth_filenames[iteration] << std::endl;
+
+
     if ((videoImage.size().height == 0 || videoImage.size().width == 0)) return false;
     if ((depthImage.size().height == 0 || depthImage.size().width == 0)) return false;
 
@@ -87,6 +91,8 @@ OfflineDataSource::OfflineDataSource() {
         }
     }
 
+    std::cout << "Number of rgb frames:" << rgb_filenames.size() << std::endl;
+
     std::sort(rgb_filenames.begin(), rgb_filenames.end(),compareNat);
 
     directory_iterator depth_end_itr;
@@ -96,6 +102,8 @@ OfflineDataSource::OfflineDataSource() {
             depth_filenames.push_back(current_file);
         }
     }
+
+    std::cout << "Number of depth frames:" << depth_filenames.size() << std::endl;
 
     std::sort(depth_filenames.begin(), depth_filenames.end(),compareNat);
 

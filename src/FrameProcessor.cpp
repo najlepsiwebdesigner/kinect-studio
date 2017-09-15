@@ -41,7 +41,7 @@ namespace app {
 //         Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
 //         Ptr<AKAZE> detector = AKAZE::create();
         Ptr<ORB> detector = ORB::create();
-//         Ptr<SIFT> detector = SIFT::create();
+//         Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
 //         Ptr<BRISK> detector = BRISK::create();
 //         Ptr<KAZE> detector = KAZE::create();
@@ -49,7 +49,18 @@ namespace app {
 
         std::vector<KeyPoint> keypoints;
         detector->detect( temp_frame.claheMat, keypoints);
-        temp_frame.keypoints = keypoints;
+
+
+        // keep only 3D keypoints
+        std::vector<cv::KeyPoint> filtered_frame_keypoints;
+
+        for (int i = 0; i < keypoints.size();i++) {
+            if (temp_frame.depthMat.at<uint16_t>(keypoints[i].pt) != 0) {
+                filtered_frame_keypoints.push_back(keypoints[i]);
+            }
+        }
+
+        temp_frame.keypoints = filtered_frame_keypoints;
     }
 
     void FrameProcessor::computeDescriptors(Frame & temp_frame) {
@@ -273,10 +284,12 @@ namespace app {
 
 //////////////////////////// processing starts here
 
-                thresholdDepth(temp_frame);
+//                thresholdDepth(temp_frame);
 
                 /// ### generate point cloud ± 11 ms
                 computePointCloud(temp_frame);
+
+//                computeBearingAngleImage(temp_frame);
 
                 /// ### 5 ms
                 computeClahe(temp_frame);
