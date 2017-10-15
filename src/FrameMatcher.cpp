@@ -11,55 +11,116 @@
 
 // using namespace std::literals;
 void app::FrameMatcher::run() {
-    // using namespace std::literals;
-//
-//    cv::namedWindow("Depth");
-//    cv::namedWindow("Video");
-//    cv::namedWindow("Thresh");
-//    cv::namedWindow("Good Matches");
-//    cv::namedWindow("Keypoints");
-//    cv::namedWindow("Clahe");
-//
-////    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-////    viewer->addCoordinateSystem (10.0);
-////    viewer->initCameraParameters ();
-//////
-////    viewer->setBackgroundColor (0, 0, 0);
-////    viewer->setCameraPosition(0, 0, -1000, 0, -1, 0);
-////    viewer->setSize(640, 480);
-//
-    while (app::Application::is_running) {
-//        Frame current_frame;
-//        {
-//            std::lock_guard<std::mutex> mutex_guard(visualized_frame_mutex);
-//            current_frame = visualized_frame;
-//
-//
-////            pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(current_frame.cloud);
-////            if (!viewer->updatePointCloud<pcl::PointXYZRGB>(current_frame.cloud, rgb, "sample cloud")) {
-////                viewer->addPointCloud<pcl::PointXYZRGB>(current_frame.cloud, rgb, "sample cloud");
-////            }
-//
-//            cv::Mat depthf(cv::Size(640, 480), CV_8UC1);
-//            current_frame.depthMat.convertTo(depthf, CV_8UC1, 255.0 / 2048.0);
-//
-//            cv::imshow("Video", current_frame.rgbMat);
-////            cv::updateWindow("Video");
-////            cv::imshow("Depth", depthf);
-////            cv::updateWindow("Depth");
-//
-////            viewer->spinOnce(30);
-//
-//        }
-//
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
-////
-////        if (cvWaitKey(10)) {
-////            app::Application::is_running = false;
-////            break;
-////        }
 
+    // stuff for framematcher thread
+    Frame previous_frame;
+
+    while (app::Application::is_running) {
+
+        {
+            std::lock_guard<std::mutex> mutex_guard(processed_frame_mutex);
+            // && !processed_frame.descriptors.empty() && !previous_frame.descriptors.empty()
+
+            if (processed_frame.processed) {
+                std::cout << "matching!" << std::endl;
+
+
+
+
+//                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZRGB> ());
+//                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZRGB> ());
+//
+//                 // cv::Mat img_keypoints = processed_frame.claheMat.clone();//cv::Mat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0));//processed_frame.claheMat.clone();
+//
+//                 //-- Step 3: Matching descriptor vectors using Bruteforce matcher
+//                 cv::BFMatcher matcher(cv::NORM_HAMMING);
+//                 std::vector<cv::DMatch> matches;
+//                 matcher.match(processed_frame.descriptors, previous_frame.descriptors, matches);
+//
+//
+////                 // maps 3D point distances to matches, int is
+////                 std::map<int, double> distances3DMap;
+////                 std::vector<double> distances3D;
+//
+////                 double max_dist = 0;
+////                 double min_dist = 1000000;
+////                 //-- Quick calculation of max and min distances between keypoints
+////                 for (int i = 0; i < matches.size(); i++) {
+////                     double dist = matches[i].distance;
+////                     if (dist < min_dist) min_dist = dist;
+////                     if (dist > max_dist) max_dist = dist;
+////                 }
+////
+////                 for (int i = 0; i < matches.size(); i++) {
+////                     if (matches[i].distance < max_dist / 2) {
+////                         // processed_frame.descriptors[matches[i].queryIdx][matches[i].trainIdx];
+////                         auto currentFrameCVPoint = processed_frame.keypoints[matches[i].queryIdx].pt;
+////                         auto previousFrameCVPoint = previous_frame.keypoints[matches[i].trainIdx].pt;
+////
+////                         auto currentCloudPoint = getCloudPoint(*(processed_frame).cloud, currentFrameCVPoint.x,
+////                                                                currentFrameCVPoint.y);
+////                         auto previousCloudPoint = getCloudPoint(*(previous_frame).cloud, previousFrameCVPoint.x,
+////                                                                 previousFrameCVPoint.y);
+////
+////                         double distance3D = pcl::euclideanDistance<pcl::PointXYZRGB, pcl::PointXYZRGB>(
+////                                 currentCloudPoint, previousCloudPoint);
+////
+////                         distances3DMap[i] = distance3D;
+////                         distances3D.push_back(distance3D);
+////                     }
+////                 }
+////
+////                 double median3dDistanceMovement = calculateMedian(distances3D);
+////                    std::cout << "median 3D distance movement: " << median3dDistanceMovement << std::endl;
+//
+//                 std::vector<cv::DMatch> good_matches;
+//
+//                 for (int i = 0; i < matches.size(); i++) {
+////                     if (distances3DMap[i] != 0 && distances3DMap[i] < median3dDistanceMovement) {
+//                         good_matches.push_back(matches[i]);
+////                     }
+//                 }
+//
+//                 // red is good
+//                 for (int i = 0; i < good_matches.size(); i++) {
+// //                        cv::circle(img_keypoints, processed_frame.keypoints[good_matches[i].queryIdx].pt, 1,
+// //                                   cv::Scalar(0, 0, 255));
+//                    colorizePoint(*processed_frame.cloud, processed_frame.keypoints[good_matches[i].queryIdx].pt.x,
+//                                 processed_frame.keypoints[good_matches[i].queryIdx].pt.y, 255, 0 ,0);\
+//
+////
+//// redundant
+//                     auto currentFrameCVPoint = processed_frame.keypoints[good_matches[i].queryIdx].pt;
+//                     auto previousFrameCVPoint = previous_frame.keypoints[good_matches[i].trainIdx].pt;
+//                     pcl::PointXYZRGB  currentCloudPoint = getCloudPoint(*(processed_frame).cloud, currentFrameCVPoint.x,
+//                                                                              currentFrameCVPoint.y);
+//                     pcl::PointXYZRGB previousCloudPoint = getCloudPoint(*(previous_frame).cloud, previousFrameCVPoint.x,
+//                                                             previousFrameCVPoint.y);
+//                     cloud_in->push_back(currentCloudPoint);
+//                     cloud_out->push_back(previousCloudPoint);
+//
+//                 }
+//
+//                 // SVD transformation estimation
+//                 pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB,pcl::PointXYZRGB>::Matrix4 transformation2;
+//                 trasformation_estimation.estimateRigidTransformation (*cloud_in,*cloud_out,transformation2);
+//                    std::cout << transformation2 << std::endl;
+//
+//
+
+
+
+
+
+
+            }
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+
+
+        previous_frame = processed_frame;
     }
 
-    std::cout << "Frame Visualizer exitting..." << std::endl;
+    std::cout << "Frame Matcher exitting..." << std::endl;
 }

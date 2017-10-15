@@ -26,6 +26,7 @@ namespace app {
         long long order;
         bool unread;
         bool processed;
+        bool matched;
 
         Frame() :
                 rgbMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
@@ -35,6 +36,7 @@ namespace app {
                 claheMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
                 unread(false),
                 processed(false),
+                matched(false),
                 cloud(new pcl::PointCloud<pcl::PointXYZRGB>)
         {
 
