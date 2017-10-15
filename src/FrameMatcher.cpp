@@ -8,8 +8,10 @@
 #include <chrono>
 #include <thread>
 
+
+// using namespace std::literals;
 void app::FrameMatcher::run() {
-    using namespace std::literals;
+    // using namespace std::literals;
 //
 //    cv::namedWindow("Depth");
 //    cv::namedWindow("Video");
@@ -50,7 +52,7 @@ void app::FrameMatcher::run() {
 //
 //        }
 //
-        std::this_thread::sleep_for(100ms);
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
 ////
 ////        if (cvWaitKey(10)) {
 ////            app::Application::is_running = false;

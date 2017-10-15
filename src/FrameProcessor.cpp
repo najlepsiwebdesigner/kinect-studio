@@ -117,10 +117,9 @@ namespace app {
             computePointCloud(temp_frame);
         }
 
-        auto pointcloud = temp_frame.cloud;
 
-        int width = pointcloud->width;
-        int height = pointcloud->height;
+        int width = temp_frame.cloud->width;
+        int height = temp_frame.cloud->height;
         unsigned int size = width * height;
         double theta, theta2;
         uint8_t gray;
@@ -129,9 +128,10 @@ namespace app {
         for (int i = 0; i < height - 1; ++i) {
             for (int j = 0; j < width - 1; ++j)
             {
-                theta = getBearingAngle(pointcloud->points[i * width + j + 1], pointcloud->points[(i + 1) * width + j]);
-                theta2 = getBearingAngle(pointcloud->points[i * width + j + 2], pointcloud->points[(i + 2) * width + j]);
+                theta = getBearingAngle(temp_frame.cloud->points[i * width + j + 1], temp_frame.cloud->points[(i + 1) * width + j]);
+                theta2 = getBearingAngle(temp_frame.cloud->points[i * width + j + 2], temp_frame.cloud->points[(i + 2) * width + j]);
 //            theta2 = theta;
+//            std::cout << theta << " " << theta2 << std::endl;
 
                 // based on the theta, calculate the gray value of every pixel point
                 temp_frame.baMat.at<uint8_t>(i + 1, j) = (uint8_t) ((theta + theta2)/2) * 255 / 180;
@@ -142,7 +142,37 @@ namespace app {
 
     /// ### compute pointcloud
     void FrameProcessor::computePointCloud(Frame & temp_frame) {
-        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGB>);
+
+        temp_frame.cloud->width = 640;
+        temp_frame.cloud->height = 480;
+        temp_frame.cloud->points.resize (640*480);
+
+        const float focalLength = 525;
+        const float centerX = 319.5;
+        const float centerY = 239.5;
+        const float scalingFactor = 1; //5000.0;
+        int depth_idx = 0;
+
+        for (int v = 0; v < 480; ++v)
+        {
+            for (int u = 0; u < 640; ++u, ++depth_idx)
+            {
+                pcl::PointXYZRGB & pt = temp_frame.cloud->points[depth_idx];
+
+                pt.z = temp_frame.depthMat.at<uint16_t>(v,u) / scalingFactor;
+                pt.x = (static_cast<float> (u) - centerX) * pt.z / focalLength;
+                pt.y = (static_cast<float> (v) - centerY) * pt.z / focalLength;
+                pt.b = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[0];
+                pt.g = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[1];
+                pt.r = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[2];
+            }
+        }
+
+    }
+
+
+    void FrameProcessor::computePointCloudWithNormals(Frame & temp_frame) {
+        pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
         cloud_ptr->width = 640;
         cloud_ptr->height = 480;
         cloud_ptr->points.resize (640*480);
@@ -157,7 +187,9 @@ namespace app {
         {
             for (int u = 0; u < 640; ++u, ++depth_idx)
             {
-                pcl::PointXYZRGB & pt = cloud_ptr->points[depth_idx];
+                pcl::PointXYZRGBNormal & pt = cloud_ptr->points[depth_idx];
+
+                if (temp_frame.depthMat.at<uint16_t>(v,u) == 0) continue;
 
                 pt.z = temp_frame.depthMat.at<uint16_t>(v,u) / scalingFactor;
                 pt.x = (static_cast<float> (u) - centerX) * pt.z / focalLength;
@@ -165,11 +197,24 @@ namespace app {
                 pt.b = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[0];
                 pt.g = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[1];
                 pt.r = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[2];
+
+
+               float dzdx = (temp_frame.depthMat.at<uint16_t>(u+1, v) - temp_frame.depthMat.at<uint16_t>(u-1, v)) / 2.0;
+               float dzdy = (temp_frame.depthMat.at<uint16_t>(u, v+1) - temp_frame.depthMat.at<uint16_t>(u, v-1)) / 2.0;
+               cv::Vec3f d(-dzdx, -dzdy, -1.0f);
+               cv::Vec3f n = cv::normalize(d);
+
+               pt.normal_x = n[0];
+               pt.normal_y = n[1];
+               pt.normal_z = n[2];
             }
         }
 
-        temp_frame.cloud = cloud_ptr;
+        temp_frame.cloud_with_normals = cloud_ptr;
     }
+
+
+
 
 
 
@@ -199,8 +244,11 @@ namespace app {
 
     /// ### bilateral filter is crazy slow ± 50 ms
     void FrameProcessor::bilateralDepth(Frame & temp_frame) {
-        cv_extend::bilateralFilter(temp_frame.depthMat.clone(),
-                                   temp_frame.depthMat, 100 ,10);
+        cv::Mat src = temp_frame.depthMat.clone();
+        cv::Mat dest;
+        cv_extend::bilateralFilter(src,
+                                   dest, 100 ,10);
+        temp_frame.depthMat = dest.clone();
     }
 
     /// ### bilateral filter on rgb image
@@ -265,10 +313,11 @@ namespace app {
         while (app::Application::is_running) {
             app::Frame temp_frame;
             bool process_frame = false;
+            std::lock_guard<std::mutex> mutex_guard(current_frame_mutex);
 
             // check if current_frame has changed, if yes, keep it and mark it for processing
             {
-                std::lock_guard<std::mutex> mutex_guard(current_frame_mutex);
+
 
                 // mark this frame as visited and pass it to processing pipeline
                 if (current_frame.unread) {
@@ -284,19 +333,25 @@ namespace app {
 
 //////////////////////////// processing starts here
 
-                thresholdDepth(temp_frame);
+//                 thresholdDepth(temp_frame);
+
+//                bilateralDepth(temp_frame);
 
                 /// ### generate point cloud ± 11 ms
                 computePointCloud(temp_frame);
 
-//                computeBearingAngleImage(temp_frame);
+                 
+
+//                 computePointCloudWithNormals(temp_frame);
+
+//               computeBearingAngleImage(temp_frame);
 
                 /// ### 5 ms
-                computeClahe(temp_frame);
+                 computeClahe(temp_frame);
 
                 /// ### compute keypoints and descriptors
-                computeKeypoints(temp_frame);
-                computeDescriptors(temp_frame);
+                 computeKeypoints(temp_frame);
+                 computeDescriptors(temp_frame);
 
 
 

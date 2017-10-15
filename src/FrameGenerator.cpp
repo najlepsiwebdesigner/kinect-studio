@@ -4,13 +4,17 @@
 
 #include "FrameGenerator.h"
 #include "offlinedatasource.h"
+#include "kinectdatasource.h"
 #include "Application.h"
 
-namespace app {
+// using namespace std::chrono_literals;
 
+namespace app {
+    // using namespace std::chrono_literals;
+    
     void FrameGenerator::run() {
         OfflineDataSource offlineDataSource;
-        offlineDataSource.loop = true;
+//        offlineDataSource.loop = true;
 
         cv::Mat video;
         cv::Mat depth;
@@ -21,11 +25,16 @@ namespace app {
 
             if (! app::Application::is_running) break;
 
+
+            if (depth.cols == 0) {
+                continue;
+            }
+
             // create frame
             Frame frame;
 
-            frame.rgbMat = video;
-            frame.depthMat = depth;
+            frame.rgbMat = video.clone();
+            frame.depthMat = depth.clone();
 
             frame.order = i;
             frame.unread = true;
@@ -39,8 +48,9 @@ namespace app {
             }
 
             // simulate some frame rate
-            if (frequency)
-                usleep(1000000 / frequency);
+//            if (frequency)
+                // usleep(1000000 / frequency);
+//                std::this_thread::sleep_for(std::chrono::milliseconds(30));
         }
 
         app::Application::stop();

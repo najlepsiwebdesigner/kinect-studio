@@ -36,6 +36,7 @@ namespace app {
         void guidedFilterDepth(Frame & temp_frame);
         void computeClahe(Frame & temp_frame);
         void computePointCloud(Frame & temp_frame);
+        void computePointCloudWithNormals(Frame & temp_frame);
         void computeBearingAngleImage(Frame & temp_frame);
         void computeKeypoints(Frame & temp_frame);
         void computeDescriptors(Frame & temp_frame);

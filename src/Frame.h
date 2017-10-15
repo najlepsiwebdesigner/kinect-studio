@@ -21,6 +21,7 @@ namespace app {
         cv::Mat descriptors;
 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
+        pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_with_normals;
 
         long long order;
         bool unread;
@@ -32,7 +33,9 @@ namespace app {
                 baMat(cv::Size(640,480), CV_8UC1),
                 hsvMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
                 claheMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
-                unread(true)
+                unread(false),
+                processed(false),
+                cloud(new pcl::PointCloud<pcl::PointXYZRGB>)
         {
 
         }
