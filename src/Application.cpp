@@ -77,7 +77,29 @@ void app::Application::start() {
     } ;
     Options options;
     options.show_3D = true;
-    options.show2D = true;
+    options.show2D = false;
+
+    CKobuki robot;
+    try {
+        unsigned char *null_ptr(0);
+        robot.startCommunication("/dev/cu.usbserial-kobuki_AI02MVQM", true, null_ptr);
+    } catch (std::runtime_error e) {
+        std::cout << "ERROR: " << e.what() << std::endl;
+    }
+//    robot.goStraight(0.3);
+//    robot.doRotation(PI/2);
+//
+//    robot.goStraight(0.3);
+//    robot.doRotation(PI/2);
+//
+//    robot.goStraight(0.3);
+//    robot.doRotation(PI/2);
+//
+//    robot.goStraight(0.3);
+//    robot.doRotation(PI/2);
+//
+
+
 
 
 

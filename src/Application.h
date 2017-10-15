@@ -11,6 +11,7 @@
 #include "FrameGenerator.h"
 #include "FrameProcessor.h"
 #include "FrameMatcher.h"
+#include "CKobuki.h"
 
 namespace app {
     class Application {

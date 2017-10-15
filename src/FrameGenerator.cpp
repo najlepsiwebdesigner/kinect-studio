@@ -13,7 +13,7 @@ namespace app {
     // using namespace std::chrono_literals;
     
     void FrameGenerator::run() {
-        OfflineDataSource offlineDataSource;
+        KinectDataSource offlineDataSource;
 //        offlineDataSource.loop = true;
 
         cv::Mat video;

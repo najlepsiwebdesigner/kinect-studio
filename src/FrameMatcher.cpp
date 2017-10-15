@@ -22,7 +22,7 @@ void app::FrameMatcher::run() {
             // && !processed_frame.descriptors.empty() && !previous_frame.descriptors.empty()
 
             if (processed_frame.processed) {
-                std::cout << "matching!" << std::endl;
+//                std::cout << "matching!" << std::endl;
 
 
 

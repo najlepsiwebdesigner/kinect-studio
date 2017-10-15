@@ -90,7 +90,7 @@ namespace app {
     /// ### generate BA image
     void FrameProcessor::computeBearingAngleImage(Frame & temp_frame) {
         auto getBearingAngle = [](pcl::PointXYZRGB point1, pcl::PointXYZRGB point2) -> double {
-            const double PI = 3.14159265358979323846;
+//            const double PI = 3.14159265358979323846;
             double a, b, c;
             double theta;
             a = sqrt (point1.x * point1.x + point1.y * point1.y + point1.z * point1.z);
