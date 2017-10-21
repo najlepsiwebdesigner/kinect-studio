@@ -28,6 +28,10 @@ namespace app {
         bool processed;
         bool matched;
 
+        long double x;
+        long double y;
+        long double theta;
+
         Frame() :
                 rgbMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
                 depthMat(cv::Size(640, 480), CV_16UC1),

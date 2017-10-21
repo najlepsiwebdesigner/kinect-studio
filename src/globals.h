@@ -22,4 +22,14 @@
 
 void sobel(cv::Mat & src_gray);
 
+struct RobotPose {
+    long double x;
+    long double y;
+    long double theta;
+};
+
+
+
+
+
 #endif  // UTILS_H

@@ -31,6 +31,7 @@
 #include <chrono>
 #include <sstream>
 
+#include "globals.h"
 #include "graph.h"
 
 using namespace std;
@@ -124,7 +125,7 @@ typedef long(*src_callback_kobuki_data) (void *user_data, TKobukiData &Kobuki_da
 class CKobuki
 {
 public:
-	CKobuki() { 
+	CKobuki(RobotPose & robot_pose):current_robot_pose(robot_pose) {
 		stopVlakno = 0; 
 		std::cout << "kobuki instantiated" << std::endl;
   		odometry_log.open("odometry.txt");
@@ -143,7 +144,7 @@ public:
 
 	long loop(void *user_data, TKobukiData &Kobuki_data);
 
-	void startCommunication(char *portname,bool CommandsEnabled,void *userDataL);
+	void startCommunication(char *portname,bool CommandsEnabled);
 	int measure(); //vlaknova funkcia, ma v sebe nekonecne vlakno a vycitava udaje
 	void setLed(int led1 = 0, int led2 = 0); //led1 zelena/cervena 2/1, //led2 zelena/cervena 2/1
 	void setTranslationSpeed(int mmpersec);
@@ -222,6 +223,7 @@ private:
 	long double currentY = 0;
 	long double currentTheta = 0;
 
+    RobotPose & current_robot_pose;
 };
 
 #endif

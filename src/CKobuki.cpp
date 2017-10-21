@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 
-plot p;
+//plot p;
 static std::vector<float> vectorX;
 static std::vector<float> vectorY;
 static std::vector<float> vectorGyroTheta;
@@ -245,11 +245,10 @@ void CKobuki::setSound(int noteinHz, int duration)
 
 
 
-void CKobuki::startCommunication(char * portname, bool CommandsEnabled,  void *userDataL)
+void CKobuki::startCommunication(char * portname, bool CommandsEnabled)
 {
     connect(portname);
     enableCommands(CommandsEnabled);
-    userData = userDataL;
 
     int pthread_result;
     pthread_result = pthread_create(&threadHandle,NULL,KobukiProcess,(void *)this);
@@ -581,15 +580,19 @@ long CKobuki::loop(void *user_data, TKobukiData &Kobuki_data) {
     currentY = gy;
     currentTheta = gyroTheta;
 
+    current_robot_pose.x = currentX;
+    current_robot_pose.y = currentY;
+    current_robot_pose.theta = currentTheta;
+
 //    std::cout << "X: " << gx
 //              << " Y: " << gy
 //              << " Gyro heta: " << gyroTheta
 //              << std::endl;
 
-    if (counter % 100 == 0) {
-        p.plot_data(vectorY, vectorX);
-    }
-    counter++;
+//    if (counter % 100 == 0) {
+//        p.plot_data(vectorY, vectorX);
+//    }
+//    counter++;
 
     return 0;
 }
@@ -607,7 +610,7 @@ void CKobuki::goStraight(long double distance){
     // parametre regulatora
     long double Kp_translation = 4000;
     long double e_translation = 0;
-    int upper_thresh_translation = 600;
+    int upper_thresh_translation = 300;
     int lower_thresh_translation = 60;
     int translation_start_gain = 30;
 
@@ -667,7 +670,7 @@ void CKobuki::doRotation(long double th) {
     long double w = th; // pozadovana hodnota v radianoch
     long double Kp = PI/2;
     long double e = 0;
-    int thresh = PI*0.7;
+    int thresh = PI*0.3;
 
     theta = 0;
     x = 0;

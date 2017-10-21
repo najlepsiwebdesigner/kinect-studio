@@ -69,6 +69,8 @@ bool app::Application::is_running = false;
 void app::Application::start() {
     is_running = true;
 
+    RobotPose current_robot_pose;
+    std::mutex current_robot_pose_mutex;
 
     struct Options {
         bool show_3D = true;
@@ -79,26 +81,16 @@ void app::Application::start() {
     options.show_3D = true;
     options.show2D = false;
 
-    CKobuki robot;
+    CKobuki robot(current_robot_pose);
     try {
         unsigned char *null_ptr(0);
-        robot.startCommunication("/dev/cu.usbserial-kobuki_AI02MVQM", true, null_ptr);
+        robot.startCommunication("/dev/cu.usbserial-kobuki_AI02MVQM", true);
     } catch (std::runtime_error e) {
         std::cout << "ERROR: " << e.what() << std::endl;
     }
-//    robot.goStraight(0.3);
-//    robot.doRotation(PI/2);
-//
-//    robot.goStraight(0.3);
-//    robot.doRotation(PI/2);
-//
-//    robot.goStraight(0.3);
-//    robot.doRotation(PI/2);
-//
-//    robot.goStraight(0.3);
-//    robot.doRotation(PI/2);
-//
 
+
+    bool is_slamming = false;
 
 
 
@@ -111,12 +103,32 @@ void app::Application::start() {
     Frame processed_frame;
     std::mutex processed_frame_mutex;
 
-    FrameGenerator frameGenerator(grabbed_frame, grabbed_frame_mutex);
+    FrameGenerator frameGenerator(grabbed_frame, grabbed_frame_mutex, current_robot_pose, current_robot_pose_mutex);
     FrameProcessor frameProcessor(grabbed_frame, grabbed_frame_mutex, processed_frame, processed_frame_mutex);
     FrameMatcher frameMatcher(processed_frame, processed_frame_mutex);
 
 
+    std::thread t0([&robot,&is_slamming]() {
 
+        std::this_thread::sleep_for(std::chrono::milliseconds(10*1000));
+
+        is_slamming = true;
+
+        robot.doRotation(PI*2);
+
+        robot.goStraight(1.8);
+
+//        robot.goStraight(0.3);
+        robot.doRotation(PI*2);
+//
+//        robot.goStraight(0.3);
+//        robot.doRotation(PI/2);
+//
+//        robot.goStraight(0.3);
+//        robot.doRotation(PI/2);
+
+        is_slamming = false;
+    });
 
 
     std::thread t1([&frameGenerator]() {
@@ -174,10 +186,47 @@ void app::Application::start() {
 
                 if (options.show_3D) {
                     // realtime 3D rendering
-                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(processed_frame.cloud);
-                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(processed_frame.cloud, rgb, "sample cloud")) {
-                        viewer->addPointCloud<pcl::PointXYZRGB>(processed_frame.cloud, rgb, "sample cloud");
+//                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(processed_frame.cloud);
+
+                    Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
+
+//                    std::cout << "X: " << processed_frame.x << std::endl
+//                              << "Y: " << processed_frame.y << std::endl
+//                              << "theta: " << processed_frame.theta << std::endl;
+
+                    // Define a translation of 2.5 meters on the x axis.
+                    transform_2.translation() << processed_frame.y*-1000, 0.0,processed_frame.x*1000;
+
+                    // The same rotation matrix as before; theta radians arround Z axis
+                    transform_2.rotate (Eigen::AngleAxisf (processed_frame.theta, Eigen::Vector3f::UnitY()));
+
+                    // Print the transformation
+//                        printf ("\nAffine3f\n");
+//                        std::cout << transform_2.matrix() << std::endl;
+
+                    // Executing the transformation
+                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr preview_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                    // You can either apply transform_1 or transform_2; they are the same
+                    pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform_2);
+
+
+
+                    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> rgb (preview_cloud, 255, 0, 0);
+                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgb, "sample cloud")) {
+                        viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgb, "sample cloud");
                         // pcl::io::savePLYFile("./ply/first.ply", *(processed_frame).cloud);
+                    }
+
+
+                    if (frames_processed % 2 == 0 && is_slamming) {
+                        std::string cloud_id = "sample cloud2_";
+                        cloud_id += std::to_string(frames_processed);
+                        std::cout << cloud_id << std::endl;
+
+                        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(preview_cloud);
+                        if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgb, cloud_id)) {
+                            viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgb, cloud_id);
+                        }
                     }
 
                     viewer->spinOnce(10);
@@ -186,7 +235,7 @@ void app::Application::start() {
                 // end = std::chrono::high_resolution_clock::now();
                 // auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
                 // frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
-                // frames_processed++;
+                frames_processed++;
 
                 if (options.show2D) {
                     // main CV visualization loop, has to be placed in main thread due to plc and opencv's restrictions
@@ -217,6 +266,8 @@ void app::Application::start() {
 
     t1.join();
     t2.join();
+    t3.join();
+    t0.join();
 
 
         // /// exit main thread

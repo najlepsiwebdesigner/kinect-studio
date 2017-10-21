@@ -38,6 +38,9 @@ namespace app {
 
             frame.order = i;
             frame.unread = true;
+            frame.x = current_robot_pose.x;
+            frame.y = current_robot_pose.y;
+            frame.theta = current_robot_pose.theta;
 
             i++;
 

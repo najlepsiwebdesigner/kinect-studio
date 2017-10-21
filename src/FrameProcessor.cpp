@@ -347,11 +347,11 @@ namespace app {
 //               computeBearingAngleImage(temp_frame);
 
                 /// ### 5 ms
-                 computeClahe(temp_frame);
+//                 computeClahe(temp_frame);
 
                 /// ### compute keypoints and descriptors
-                 computeKeypoints(temp_frame);
-                 computeDescriptors(temp_frame);
+//                 computeKeypoints(temp_frame);
+//                 computeDescriptors(temp_frame);
 
 
 

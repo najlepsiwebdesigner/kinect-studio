@@ -38,7 +38,10 @@ public:
  if(!enabled)
 	return;
   fprintf(gp,"set title '%s' \n",title);
+//  fprintf(gp,"set style line 1 lt 2 lw 2 pt 3 ps 0.5 \n");
+
   fprintf(gp,"plot '-' w %s \n",style);
+
   for(int k=0;k<x.size();k++) {
    fprintf(gp,"%f %f \n",x[k],y[k]);
   }
