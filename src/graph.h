@@ -16,9 +16,9 @@ public:
  persist=_persist;
   if (enabled) {
 	if(persist)
-		  gp=popen("gnuplot -persist","w");
+		  gp=popen("set term x11 1 noraise && gnuplot -persist","w");
 	else
-		  gp=popen("gnuplot","w");
+		  gp=popen("set term x11 1 noraise && gnuplot","w");
   }
  }
 

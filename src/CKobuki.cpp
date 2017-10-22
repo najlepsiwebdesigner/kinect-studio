@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 
-//plot p;
+plot p;
 static std::vector<float> vectorX;
 static std::vector<float> vectorY;
 static std::vector<float> vectorGyroTheta;
@@ -589,10 +589,10 @@ long CKobuki::loop(void *user_data, TKobukiData &Kobuki_data) {
 //              << " Gyro heta: " << gyroTheta
 //              << std::endl;
 
-//    if (counter % 100 == 0) {
+    if (counter % 100 == 0) {
 //        p.plot_data(vectorY, vectorX);
-//    }
-//    counter++;
+    }
+    counter++;
 
     return 0;
 }
@@ -691,7 +691,7 @@ void CKobuki::doRotation(long double th) {
                 u = i;
             }
 
-            std::cout << "Angle: " << gyroTheta << " required:" << w << std::endl;
+//            std::cout << "Angle: " << gyroTheta << " required:" << w << std::endl;
             this->setRotationSpeed(-1*u);
             usleep(25*1000);
             i = i + 0.1;
@@ -709,14 +709,14 @@ void CKobuki::doRotation(long double th) {
                 u = i;
             }
 
-            std::cout << "Angle: " << gyroTheta << " required:" << w << std::endl;
+//            std::cout << "Angle: " << gyroTheta << " required:" << w << std::endl;
             this->setRotationSpeed(u);
             usleep(25*1000);
             i = i + 0.1;
         }
     }
 
-    std::cout << "stop the fuck!" << std::endl;
+//    std::cout << "stop the fuck!" << std::endl;
     // usleep(25*1000);
     this->setRotationSpeed(0);
     usleep(25*1000);
