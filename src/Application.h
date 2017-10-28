@@ -13,16 +13,14 @@
 //#include "FrameMatcher.h"
 #include "CKobuki.h"
 
+
 namespace app {
     class Application {
 
     public:
         static bool is_running;
-
-        static void start();
-
+        static void start(int argc, char** argv);
         static void stop();
-
     };
 }
 

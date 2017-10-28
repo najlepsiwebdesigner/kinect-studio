@@ -24,84 +24,94 @@
 #include <pcl/octree/octree.h>
 #include <pcl/octree/octree_impl.h>
 
-pcl::PointXYZRGB getCloudPoint(const pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  int x, int y) {
-    int arrayPosition = y*my_pcl.width + x * 1;
+#include <pcl/octree/octree_pointcloud_changedetector.h>
 
-    pcl::PointXYZRGB cloudPoint = my_pcl.points[arrayPosition];
+#include <pcl/console/parse.h>
 
-    return cloudPoint;
-}
+#include <pcl/visualization/point_cloud_handlers.h>
+#include <pcl/visualization/common/common.h>
+#include <vtkRenderWindow.h>
+#include <vtkCubeSource.h>
+#include <vtkDataSetMapper.h>
+#include <vtkAppendPolyData.h>
 
-
-void colorizePoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  int x, int y, int r, int g, int b) {
-    int arrayPosition =  y * my_pcl.width + x * 1;
-
-    my_pcl.points[arrayPosition].r = r;
-    my_pcl.points[arrayPosition].g = g;
-    my_pcl.points[arrayPosition].b = b;
-
-}
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr model (new pcl::PointCloud<pcl::PointXYZRGB> ());
+bool app::Application::is_running = true;
 
 
 
-double calculateMedian(std::vector<double> scores)
+void printUsage (const char* progName)
 {
-  if (scores.size() < 1) {
-      return 0;
-  }
-  double median;
-  size_t size = scores.size();
+    std::cout << "\n\nUsage: "<<progName<<" [options]\n\n"
+              << "Options:\n"
+              << "-------------------------------------------\n"
+              << "-h           this help\n"
+              << "-r           Record frames during capture\n"
+              << "-s           Do odometry slam\n"
+              << "-o           Use offline data instead of live stream\n"
+              << "\n\n";
+}
 
-  std::sort(scores.begin(), scores.end());
 
-  if (size  % 2 == 0)
-  {
-      median = (scores[size / 2 - 1] + scores[size / 2]) / 2;
-  }
-  else
-  {
-      median = scores[size / 2];
-  }
+// save whole map on key press, bugged @TODO!
+void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void* viewer_void) {
+    if (event.getKeySym() == "i" && event.keyDown()) {
 
-  return median;
+        pcl::io::savePLYFileBinary("model.ply", *model);
+        std::cout << "Saving model!" << std::endl;
+    }
 }
 
 
 
+void app::Application::start(int argc, char** argv) {
+
+    // application options
+    static Options options;
+
+    if (pcl::console::find_argument (argc, argv, "-h") >= 0) {
+        printUsage (argv[0]);
+        return;
+    } else if (pcl::console::find_argument (argc, argv, "-r") >= 0) {
+        options.is_recording = true;
+        options.is_slamming = false;
+        options.show2D = false;
+        options.show_3D = true;
+        std::cout << "Now i should record frames" << std::endl;
+    } else if (pcl::console::find_argument (argc, argv, "-s") >= 0) {
+        options.is_slamming = true;
+        options.show2D = false;
+        options.show_3D = true;
+        options.is_recording = false;
+        std::cout << "Now I should do online SLAM" << std::endl;
+
+        if (pcl::console::find_argument(argc, argv, "-o") >= 0) {
+            options.offline = true;
+            std::cout << "Now I will do offline slam from selected path as input argument" << std::endl;
+        }
+    }
+
+    // overridden application options
+    options.show2D = false;
+    options.show_3D = true;
+    options.is_slamming = true;
+    options.is_recording = false;
+    options.offline = true;
 
 
-bool app::Application::is_running = false;
 
-void app::Application::start() {
-    is_running = true;
-
+    // robot initial setup, setup shared variables which are used for propagation of current pose elsewhere
     RobotPose current_robot_pose;
     std::mutex current_robot_pose_mutex;
 
-
-    struct Options {
-        bool show_3D = true;
-        bool show2D = true;
-
-    } ;
-    Options options;
-    options.show_3D = true;
-    options.show2D = false;
-
-
-
     CKobuki robot(current_robot_pose);
     try {
-        unsigned char *null_ptr(0);
-        robot.startCommunication("/dev/cu.usbserial-kobuki_AI02MVQM", true);
+        if (!options.offline) {
+            robot.startCommunication("/dev/cu.usbserial-kobuki_AI02MVQM", true);
+        }
     } catch (std::runtime_error e) {
         std::cout << "ERROR: " << e.what() << std::endl;
     }
-
-
-    bool is_slamming = true;
-
-
 
 
     // holds latest captured frame from data source
@@ -112,40 +122,14 @@ void app::Application::start() {
     Frame processed_frame;
     std::mutex processed_frame_mutex;
 
-    FrameGenerator frameGenerator(grabbed_frame, grabbed_frame_mutex, current_robot_pose, current_robot_pose_mutex);
-    FrameProcessor frameProcessor(grabbed_frame, grabbed_frame_mutex, processed_frame, processed_frame_mutex);
+    FrameGenerator frameGenerator(options, grabbed_frame, grabbed_frame_mutex, current_robot_pose, current_robot_pose_mutex);
+    FrameProcessor frameProcessor(options, grabbed_frame, grabbed_frame_mutex, processed_frame, processed_frame_mutex);
 //    FrameMatcher frameMatcher(processed_frame, processed_frame_mutex);
 
+    // control robot here
+    std::thread t0([&robot]() {
 
-    std::thread t0([&robot,&is_slamming]() {
-
-//        std::this_thread::sleep_for(std::chrono::milliseconds(10*1000));
-
-//        is_slamming = true;
-
-
-
-//        robot.goStraight(0.3);
-
-//        robot.doRotation(PI*2);
-
-
-//        robot.goStraight(0.3);
-
-
-//        robot.doRotation(PI);
-//        robot.goStraight(0.3);
-//        robot.doRotation(PI*2);
-//
-//        robot.goStraight(0.3);
-//        robot.doRotation(PI/2);
-//
-//        robot.goStraight(0.3);
-//        robot.doRotation(PI/2);
-
-//        is_slamming = false;
     });
-
 
     std::thread t1([&frameGenerator]() {
         frameGenerator.run();
@@ -161,20 +145,14 @@ void app::Application::start() {
 
 
 
-// 2D options
+    // 2D options, gui initialization
     if (options.show2D) {
-        // gui initialization
         cv::namedWindow("Depth");
         cv::namedWindow("Video");
-        // cv::namedWindow("Thresh");
-        // cv::namedWindow("Good Matches");
-        // cv::namedWindow("Keypoints");
-        // cv::namedWindow("Clahe");
     }
 
-// 3D options
+    // 3D options, initialize 3d viewer
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer ("3D Viewer"));
-
     if (options.show_3D) {
         viewer->addCoordinateSystem (10.0);
         viewer->initCameraParameters ();
@@ -183,174 +161,127 @@ void app::Application::start() {
         viewer->setSize(2560, 1920);
         viewer->addArrow(pcl::PointXYZ(0,0,100),pcl::PointXYZ(0,0,0),255,125,125,"arrow");
     }
+    viewer->registerKeyboardCallback (keyboardEventOccurred, (void*)viewer.get ());
 
-    pcl::registration::TransformationEstimationSVD<pcl::PointXYZRGB,pcl::PointXYZRGB> trasformation_estimation;
 
+    // world model and temporary octree used for comparision with previous frame - bugged
+    pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB> world_octree(0.05);
+    pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZRGB> octree(5);
+    // indices of collision points between previous frame and current frame
+    std::vector<int> newPointIdxVector;
 
+    // time benchmark start
     long long frame_processing_average_milliseconds = 0;
-    long long frames_processed = 0;     
+    long long frames_processed = 0;
 
-    Frame keyframe;
-
-
-
-
-    pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB> octree(5);
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr model (new pcl::PointCloud<pcl::PointXYZRGB> ());
-
-//    double max_cloud_height = 0;
-//    double min_cloud_height = 0;
-
-
-
-
-    while (is_running) 
+    while (is_running)
     {
         {
             std::lock_guard<std::mutex> mutex_guard(processed_frame_mutex);
-
-            // && !processed_frame.descriptors.empty() && !previous_frame.descriptors.empty()
-
+            // grab currently pre-processed frame
             if (processed_frame.processed) {
 
-                auto start = std::chrono::high_resolution_clock::now();
-
-                if (options.show_3D) {
-                    // realtime 3D rendering
-//                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(processed_frame.cloud);
-
-                    if (is_slamming){
-                        Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
-
-    //                    std::cout << "X: " << processed_frame.x << std::endl
-    //                              << "Y: " << processed_frame.y << std::endl
-    //                              << "theta: " << processed_frame.theta << std::endl;
-
-                        // Define a translation of 2.5 meters on the x axis.
-                        transform_2.translation() << processed_frame.y*1000, 0.0,processed_frame.x*1000;
-
-                        // The same rotation matrix as before; theta radians arround Z axis
-                        transform_2.rotate (Eigen::AngleAxisf (processed_frame.theta, Eigen::Vector3f::UnitY()));
-
-                        // Print the transformation
-    //                        printf ("\nAffine3f\n");
-    //                        std::cout << transform_2.matrix() << std::endl;
-
-                        // Executing the transformation
-                        pcl::PointCloud<pcl::PointXYZRGB>::Ptr preview_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-                        // You can either apply transform_1 or transform_2; they are the same
-                        pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform_2);
-
-                        pcl::PointXYZRGB initial_camera_pose(0,0,0);
-                        pcl::PointXYZRGB camera_pose;
-
-                        camera_pose = pcl::transformPoint(initial_camera_pose,transform_2);
-//                        std::cout << camera_pose << std::endl;
 
 
-                        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> rgb (preview_cloud, 255, 0, 0);
-                        if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgb, "sample cloud")) {
-                            viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgb, "sample cloud");
+                if (options.is_slamming){
 
-                            // initialize keyframe
-//                            keyframe = processed_frame;
+                    auto start = std::chrono::high_resolution_clock::now();
+
+                    // Compute transformation
+                    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+                    transform.translation() << processed_frame.y*1000, 0.0,processed_frame.x*1000;
+                    transform.rotate (Eigen::AngleAxisf (processed_frame.theta, Eigen::Vector3f::UnitY()));
+
+                    // Transform
+                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr preview_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                    pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform);
+                    pcl::PointXYZRGB initial_camera_pose(0,0,0);
+                    pcl::PointXYZRGB camera_pose;
+                    camera_pose = pcl::transformPoint(initial_camera_pose,transform);
+
+                    // load new frame into octree collision object and compute overlap
+                    octree.switchBuffers();
+                    octree.setInputCloud(preview_cloud);
+                    octree.addPointsFromInputCloud();
+                    newPointIdxVector.clear();
+
+                    // Get vector of point indices from octree voxels which did not exist in previous buffer
+                    octree.getPointIndicesFromNewVoxels (newPointIdxVector, 20);
+
+                    // if there is some amount of points missing, add current frame to scene
+                    if (newPointIdxVector.size() > 20000) {
+                        world_octree.setInputCloud(preview_cloud);
+                        world_octree.addPointsFromInputCloud();
+
+//                            std::cout << "Model updated!" << std::endl;
+                    }
+
+                    // re-render world-model octree as point cloud, using centeroids as new points
+                    auto tree_it = world_octree.begin(12);
+                    auto tree_it_end = world_octree.end();
+
+                    model->points.clear();
+                    for (; tree_it != tree_it_end; ++tree_it)
+                    {
+                        Eigen::Vector3f voxel_min, voxel_max;
+                        world_octree.getVoxelBounds(tree_it, voxel_min, voxel_max);
+                        pcl::PointXYZRGB pt;
+                        pt.x = (voxel_min.x() + voxel_max.x()) / 2.0f;
+                        pt.y = (voxel_min.y() + voxel_max.y()) / 2.0f;
+                        pt.z = (voxel_min.z() + voxel_max.z()) / 2.0f;
+
+                        pt.r = 0;
+                        pt.g = 140;
+                        pt.b = 255;
+                        model->points.push_back(pt);
+                    }
+
+                    // time benchmark stop
+                    auto end = std::chrono::high_resolution_clock::now();
+                    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                    frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
+                    frames_processed++;
 
 
-//                            *keyframe.cloud = *preview_cloud;
-
-
-
-                            // pcl::io::savePLYFile("./ply/first.ply", *(processed_frame).cloud);
+                    if (options.show_3D) {
+                        // visualize world model
+                        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
+                        if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
+                            viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
                         }
 
-//                        boost::shared_ptr<pcl::search::Search<pcl::PointXYZRGB> > kdtree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
-//                        kdtree->setInputCloud(preview_cloud);
-//                        // distance in [mm]
-//                        pcl::PointCloud<pcl::PointXYZRGB>::Ptr difference_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-//                        pcl::getPointCloudDifference(*preview_cloud, *preview_cloud, 30, kdtree, *difference_cloud);
-//                        std::cout << difference_cloud->points.size() << std::endl;
 
-                        if (frames_processed % 10 == 0 ) {
-//                            std::string cloud_id = "sample cloud2_";
-//                            cloud_id += std::to_string(frames_processed);
-//                            std::cout << cloud_id << std::endl;
+                        // add current camera position
+                        std::string sphere_name = "sphere";
+                        sphere_name += std::to_string(frames_processed);
+                        viewer->addSphere(camera_pose, 20, 255, 255, 255, sphere_name);
 
-
-                            //create octree structure
-                            octree.setInputCloud(preview_cloud);
-                            //update bounding box automatically
-//                            octree.defineBoundingBox();
-                            //add points in the tree
-                            octree.addPointsFromInputCloud();
-
-//                            model->points.clear();
+////                        std::cout << "size of difference: " << newPointIdxVector.size() << std::endl;
+//                        // highlight collision points in current frame
+//                        for (auto it = preview_cloud->points.begin(); it != preview_cloud->points.end(); ++it) {
+//                            it->r = 0;
+//                            it->g = 0;
+//                            it->b = 255;
+//                        }
 
 
-                            pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it;
-                            pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it_end = octree.end();
+                        for (std::vector<int>::iterator it = newPointIdxVector.begin();
+                             it != newPointIdxVector.end(); ++it) {
+                            preview_cloud->points[*it].r = 255;
+                            preview_cloud->points[*it].g = 0;
+                            preview_cloud->points[*it].b = 0;
+                        }
 
-
-
-                            for (tree_it = octree.begin(8); tree_it!=tree_it_end; ++tree_it)
-                            {
-                                Eigen::Vector3f voxel_min, voxel_max;
-                                octree.getVoxelBounds(tree_it, voxel_min, voxel_max);
-                                pcl::PointXYZRGB pt;
-                                pt.x = (voxel_min.x() + voxel_max.x()) / 2.0f;
-                                pt.y = (voxel_min.y() + voxel_max.y()) / 2.0f;
-                                pt.z = (voxel_min.z() + voxel_max.z()) / 2.0f;
-
-
-//                                if (max_cloud_height < pt.y) {
-//                                    max_cloud_height = pt.y;
-//                                }
-//                                if (min_cloud_height > pt.y) {
-//                                    min_cloud_height = pt.y;
-//                                }
-
-                                pt.r = 0;
-                                pt.g = 100;
-                                pt.b = 255;
-                                model->points.push_back(pt);
-                            }
-//
-//                            double scale = max_cloud_height - min_cloud_height;
-//                            for (auto & point : model->points) {
-//
-//                                double percentage_of_color = (point.y - min_cloud_height) * 100 / scale;
-//                                std::cout << point.y << " of:" << scale  << " min:" << min_cloud_height << " max: " << max_cloud_height << " %: " << percentage_of_color << std::endl;
-//
-//                                point.r = 50;
-//                                point.g = round(255 * percentage_of_color);
-//                                point.b = round(255 * percentage_of_color);
-//                            }
-
-                            // global model growing
-//                            *model += *preview_cloud;
-                            std::cout << "model size:" << model->points.size() << std::endl;
-
-                            pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
-                            if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
-//                            if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgb, cloud_id)) {
-
-                                viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
-
-                            }
-                            std::string sphere_name = "sphere";
-                            sphere_name += std::to_string(frames_processed);
-                            viewer->addSphere(camera_pose, 20, 255, 255, 255, sphere_name);
+                        // current cloud visualization
+                        pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbb(preview_cloud);
+                        if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgbb, "sample cloud")) {
+                            viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgbb, "sample cloud");
                         }
                     }
 
 
-
-                    viewer->spinOnce(30);
                 }
-                // time benchmark stop
-                 auto end = std::chrono::high_resolution_clock::now();
-                 auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                 frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
-                frames_processed++;
+
 
                 if (options.show2D) {
                     // main CV visualization loop, has to be placed in main thread due to plc and opencv's restrictions
@@ -359,11 +290,11 @@ void app::Application::start() {
 
                     cv::imshow("Video", processed_frame.claheMat);
                     cv::imshow("Depth", depthf);
-//                    cv::imshow("BA image", processed_frame.baMat);
                 }
-
             }
         } // locked processed_frame
+
+        viewer->spinOnce(5);
 
         char c = cvWaitKey(10);
         if (c == 27 || viewer->wasStopped()) {
@@ -372,33 +303,24 @@ void app::Application::start() {
             break;
         }
         else if (c == 115) {
-            if (is_slamming) {
-                is_slamming = false;
+            if (options.is_slamming) {
+                options.is_slamming = false;
             } else {
-                is_slamming = true;
+                options.is_slamming = true;
             }
-            std::cout << "slamming! " << is_slamming << std::endl;
+            std::cout << "slamming! " << options.is_slamming << std::endl;
         }
-
-
-
-
     }
 
-
-
-
+    t0.join();
     t1.join();
     t2.join();
 //    t3.join();
-    t0.join();
 
-
-        // /// exit main thread
-         std::cout << "Frame count: " << frames_processed << " avg time of transformation estimation: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
-         std::cout << "Main thread thread exitting.." << std::endl;
-
-
+    viewer->close();
+    // exit main thread
+    std::cout << "Frame count: " << frames_processed << " avg time of transformation estimation: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
+    std::cout << "Main thread exitting.." << std::endl;
 }
 
 void app::Application::stop() {

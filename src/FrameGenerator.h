@@ -19,11 +19,14 @@ namespace app {
 
         std::mutex & current_robot_pose_mutex;
         RobotPose & current_robot_pose;
+        Options options;
 
-        FrameGenerator(app::Frame & _current_frame,
+        FrameGenerator(Options options,
+                       app::Frame & _current_frame,
                        std::mutex & _current_frame_mutex,
                        RobotPose & _current_robot_pose,
                        std::mutex & _current_robot_pose_mutex):
+                options(options),
                 current_frame(_current_frame),
                 current_frame_mutex(_current_frame_mutex),
                 current_robot_pose(_current_robot_pose),

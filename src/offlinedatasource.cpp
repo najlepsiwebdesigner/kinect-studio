@@ -17,8 +17,8 @@ bool OfflineDataSource::getVideoAndDepth(cv::Mat& video, cv::Mat& depth) {
 //    std::cout << depth_filenames[iteration] << std::endl;
 
 
-    if ((videoImage.size().height == 0 || videoImage.size().width == 0)) return false;
-    if ((depthImage.size().height == 0 || depthImage.size().width == 0)) return false;
+//    if ((videoImage.size().height == 0 || videoImage.size().width == 0)) return false;
+//    if ((depthImage.size().height == 0 || depthImage.size().width == 0)) return false;
 
     iteration++;
     videoImage.copyTo(video);
@@ -67,8 +67,8 @@ bool OfflineDataSource::getVideo(cv::Mat& output) {
 
 OfflineDataSource::OfflineDataSource() {
     // load whole directory here and sort the contents by name
-    boost::filesystem::path rgb_directory ("./rgb");
-    boost::filesystem::path depth_directory ("./depth");
+    boost::filesystem::path rgb_directory ("/Volumes/rdisk//rgb");
+    boost::filesystem::path depth_directory ("/Volumes/rdisk//depth");
 
     if (!exists(rgb_directory) || !is_directory(rgb_directory)) {
         std::cout << "RGB input directory does not exist or is not a directory!" << std::endl;

@@ -27,7 +27,7 @@ class OfflineDataSource : public RgbdDataSource {
         long iteration = 0;
         long frequency = 30; // [Hz] unused!!!!
         bool recording_enabled = false;
-        bool loop = true;
+        bool loop = false;
 };
 
 

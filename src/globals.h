@@ -28,6 +28,14 @@ struct RobotPose {
     long double theta;
 };
 
+struct Options {
+    bool show_3D = true;
+    bool show2D = false;
+    bool is_recording = false;
+    bool offline = false;
+    bool is_slamming = true;
+    std::string record_path;
+};
 
 
 

@@ -9,6 +9,53 @@
 #include <thread>
 
 
+
+
+
+pcl::PointXYZRGB getCloudPoint(const pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  int x, int y) {
+    int arrayPosition = y*my_pcl.width + x * 1;
+
+    pcl::PointXYZRGB cloudPoint = my_pcl.points[arrayPosition];
+
+    return cloudPoint;
+}
+
+
+void colorizePoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  int x, int y, int r, int g, int b) {
+    int arrayPosition =  y * my_pcl.width + x * 1;
+
+    my_pcl.points[arrayPosition].r = r;
+    my_pcl.points[arrayPosition].g = g;
+    my_pcl.points[arrayPosition].b = b;
+
+}
+
+
+
+double calculateMedian(std::vector<double> scores)
+{
+    if (scores.size() < 1) {
+        return 0;
+    }
+    double median;
+    size_t size = scores.size();
+
+    std::sort(scores.begin(), scores.end());
+
+    if (size  % 2 == 0)
+    {
+        median = (scores[size / 2 - 1] + scores[size / 2]) / 2;
+    }
+    else
+    {
+        median = scores[size / 2];
+    }
+
+    return median;
+}
+
+
+
 // using namespace std::literals;
 void app::FrameMatcher::run() {
 

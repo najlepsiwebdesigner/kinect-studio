@@ -50,8 +50,9 @@ KinectDataSource::~KinectDataSource() {
     device->stopVideo();
     device->stopDepth();
 
-    delete this->device;
-    this->device = NULL;
+    freenect_ptr->deleteDevice(0);
+//    delete this->device;
+//    this->device = NULL;
 
     delete this->freenect_ptr;
     this->freenect_ptr = NULL;
