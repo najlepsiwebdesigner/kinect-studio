@@ -212,7 +212,8 @@ void app::Application::start(int argc, char** argv) {
                 transform.rotate (Eigen::AngleAxisf (processed_frame.theta, Eigen::Vector3f::UnitY()));
 
                 // Transform cloud and compute camera pose
-                pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform);
+//                pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform);
+                *preview_cloud = *processed_frame.cloud;
                 pcl::PointXYZRGB initial_camera_pose(0,0,0);
                 pcl::PointXYZRGB camera_pose;
                 camera_pose = pcl::transformPoint(initial_camera_pose,transform);
@@ -370,7 +371,7 @@ void app::Application::start(int argc, char** argv) {
 
 
                     pcl::PointCloud<pcl::PointXYZRGB>::Ptr ground_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-
+                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr tilted_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
 
                     if (inliers->indices.size () > 6)
                     {
@@ -382,11 +383,11 @@ void app::Application::start(int argc, char** argv) {
                         proj.filter (*ground_cloud);
 
 
-
-                        std::cerr << "Model coefficients: " << coefficients->values[0] << " "
-                                  << coefficients->values[1] << " "
-                                  << coefficients->values[2] << " "
-                                  << coefficients->values[3] << std::endl;
+                        // plane model ax + by + cz + d = 0
+//                        std::cerr << "Model coefficients: " << coefficients->values[0] << " "
+//                                  << coefficients->values[1] << " "
+//                                  << coefficients->values[2] << " "
+//                                  << coefficients->values[3] << std::endl;
 //
 //                        std::cerr << "Model inliers: " << inliers->indices.size () << std::endl;
 //
@@ -396,15 +397,61 @@ void app::Application::start(int argc, char** argv) {
 //                            preview_cloud->points[inliers->indices[i]].b = 0;
 //                        }
 
+
+
+
+                        // vypocitaj transformaciu medzi rovinami
+                        // https://stackoverflow.com/questions/32299903/rotation-and-transformation-of-a-plane-to-xy-plane-and-origin-in-pointcloud
+                        Eigen::Matrix<float, 1, 3> floor_plane_normal_vector, xy_plane_normal_vector, rotation_vector;
+
+                        floor_plane_normal_vector[0] = coefficients->values[0];
+                        floor_plane_normal_vector[1] = coefficients->values[1];
+                        floor_plane_normal_vector[2] = coefficients->values[2];
+
+//                        std::cout << floor_plane_normal_vector << std::endl;
+
+                        xy_plane_normal_vector[0] = 0.0;
+                        xy_plane_normal_vector[1] = 1.0;
+                        xy_plane_normal_vector[2] = 0.0;
+
+//                        std::cout << xy_plane_normal_vector << std::endl;
+
+                        rotation_vector = xy_plane_normal_vector.cross(floor_plane_normal_vector);
+                        rotation_vector.normalize();
+//                        std::cout << "Rotation Vector: "<< rotation_vector << std::endl;
+
+                        float theta = 0;
+                        std::cout << rotation_vector[2] << std::endl;
+                        // https://stackoverflow.com/questions/14066933/direct-way-of-computing-clockwise-angle-between-2-vectors#comment69460296_16544330
+                        if (rotation_vector[2] > 0) {
+                            theta = acos(floor_plane_normal_vector.dot(xy_plane_normal_vector)/sqrt( floor_plane_normal_vector.norm()) * sqrt(xy_plane_normal_vector.norm()));
+                        } else if (rotation_vector[2] < 0){
+                            theta = PI - acos(floor_plane_normal_vector.dot(xy_plane_normal_vector)/sqrt( floor_plane_normal_vector.norm()) * sqrt(xy_plane_normal_vector.norm()));
+                        } else {
+                            theta = 0;
+                        }
+
+                        Eigen::Affine3f transform_2 = Eigen::Affine3f::Identity();
+//                        transform_2.translation() << transform.translation();
+                        transform_2.rotate (Eigen::AngleAxisf (theta, rotation_vector));
+
+//                        std::cout << "Transformation matrix: " << std::endl << transform_2.matrix() << std::endl;
+                        pcl::transformPointCloud (*ground_cloud, *tilted_cloud, transform_2.inverse());
                     }
 
 
 
 
-                    // current cloud visualization
+                    // ground cloud visualization
                     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbb(ground_cloud);
-                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "sample cloud")) {
-                        viewer->addPointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "sample cloud");
+                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "sample ground")) {
+                        viewer->addPointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "sample ground");
+                    }
+
+                    // tilted cloud visualization
+                    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> rgbc(tilted_cloud,255,0,0);
+                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(tilted_cloud, rgbc, "tilted ground")) {
+                        viewer->addPointCloud<pcl::PointXYZRGB>(tilted_cloud, rgbc, "tilted ground");
                     }
                 }
 

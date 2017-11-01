@@ -85,11 +85,6 @@ namespace app {
                     std::lock_guard<std::mutex> mutex_guard(current_frame_mutex);
                     current_frame = frame;
                 }
-
-                // simulate some frame rate
-//            if (frequency)
-                // usleep(1000000 / frequency);
-//                std::this_thread::sleep_for(std::chrono::milliseconds(30));
             }
 
             app::Application::stop();
@@ -128,6 +123,9 @@ namespace app {
                     std::lock_guard<std::mutex> mutex_guard(current_frame_mutex);
                     current_frame = frame;
                 }
+
+                // simulate som frame rate
+                std::this_thread::sleep_for(std::chrono::milliseconds(30));
             }
 
             app::Application::stop();
