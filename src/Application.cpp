@@ -112,7 +112,7 @@ void app::Application::start(int argc, char** argv) {
     // overridden application options
     options.show2D = false;
     options.show_3D = true;
-    options.is_slamming = true;
+    options.is_slamming = false;
     options.is_recording = false;
     options.offline = true;
 
@@ -219,17 +219,20 @@ void app::Application::start(int argc, char** argv) {
                 {
                     for (int u = 0; u < 640; ++u, ++depth_idx)
                     {
-                        if (v > 380) {
+                        if (v > 380 ) {
                             pcl::PointXYZRGB & pt = processed_frame.cloud->points[depth_idx];
 //                            pt.r = 0;
 //                            pt.g = 255;
 //                            pt.b = 0;
-
-                            cropped_cloud->points.push_back(pt);
+                            if (pt.z < 5000) {
+                                cropped_cloud->points.push_back(pt);
+                            }
                         }
                     }
                 }
 
+
+                std::cout << cropped_cloud->points.size() << std::endl;
 //                    *preview_cloud = *cropped_cloud;
 
 
@@ -246,22 +249,22 @@ void app::Application::start(int argc, char** argv) {
                 seg.setMethodType (pcl::SAC_RANSAC);
                 seg.setMaxIterations (5000);
 
-                seg.setDistanceThreshold (1);
+                seg.setDistanceThreshold (0.5);
 
                 seg.setInputCloud (cropped_cloud);
 
                 //because we want a specific plane (X-Z Plane) (In camera coordinates the ground plane is perpendicular to the y axis)
                 Eigen::Vector3f axis = Eigen::Vector3f(0.0,1.0,0.0); //y axis
                 seg.setAxis(axis);
-                seg.setEpsAngle(  10.0f * (PI/180.0f) ); // plane can be within 30 degrees of X-Z plane
+                seg.setEpsAngle(  1.0f * (PI/180.0f) ); // plane can be within 2 degrees of X-Z plane
 
                 seg.segment (*inliers, *coefficients);
 
 
-//                pcl::PointCloud<pcl::PointXYZRGB>::Ptr ground_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-//                pcl::PointCloud<pcl::PointXYZRGB>::Ptr tilted_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr ground_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr tilted_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
 
-                if (inliers->indices.size () > 6)
+                if (inliers->indices.size () > 3000)
                 {
 
 //                    pcl::ProjectInliers<pcl::PointXYZRGB> proj;
@@ -280,9 +283,9 @@ void app::Application::start(int argc, char** argv) {
 //                        std::cerr << "Model inliers: " << inliers->indices.size () << std::endl;
 //
 //                        for (size_t i = 0; i < inliers->indices.size (); ++i) {
-//                            preview_cloud->points[inliers->indices[i]].r = 255;
-//                            preview_cloud->points[inliers->indices[i]].g = 0;
-//                            preview_cloud->points[inliers->indices[i]].b = 0;
+//                            cropped_cloud->points[inliers->indices[i]].r = 255;
+//                            cropped_cloud->points[inliers->indices[i]].g = 0;
+//                            cropped_cloud->points[inliers->indices[i]].b = 0;
 //                        }
 
 
@@ -319,16 +322,18 @@ void app::Application::start(int argc, char** argv) {
                         theta = 0;
                     }
 
+                    theta = theta * -1;
 //                    std::cout << theta << std::endl;
 
 
 //                        transform_2.translation() << transform.translation();
                     transform_2.rotate (Eigen::AngleAxisf (theta, rotation_vector));
 
-                        std::cout << "Transformation matrix: " << std::endl << transform_2.matrix() << std::endl;
-//                    pcl::transformPointCloud (*ground_cloud, *tilted_cloud, transform_2.inverse());
+//                        std::cout << "Transformation matrix: " << std::endl << transform_2.matrix() << std::endl;
+//                    pcl::transformPointCloud (*cropped_cloud, *ground_cloud, transform_2.inverse());
                 }
 
+//                *ground_cloud = *cropped_cloud;
 
 
 // ### GROUND CLOUD COMPUTATION END
@@ -346,7 +351,12 @@ void app::Application::start(int argc, char** argv) {
 //                pcl::transformPointCloud (*processed_frame.cloud, *ground_aligned_cloud, transform_2.inverse());
 
 
-                pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud,  transform);
+                pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform);
+
+//                pcl::transformPointCloud<pcl::PointXYZRGB>(*tilted_cloud, *ground_cloud,  transform);
+
+
+
                 pcl::PointXYZRGB initial_camera_pose(0,0,0);
                 pcl::PointXYZRGB camera_pose;
                 camera_pose = pcl::transformPoint(initial_camera_pose,transform);
@@ -458,16 +468,20 @@ void app::Application::start(int argc, char** argv) {
 
 
 
-
+//// preview cloud visualization
+//                    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> rgbb(ground_cloud, 255,0 ,0);
+//                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "ground ground")) {
+//                        viewer->addPointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "ground ground");
+//                    }
 
 
 
 
 
                     // preview cloud visualization
-                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbb(preview_cloud);
-                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgbb, "sample ground")) {
-                        viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgbb, "sample ground");
+                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbc(preview_cloud);
+                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "sample ground")) {
+                        viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "sample ground");
                     }
                 }
 
