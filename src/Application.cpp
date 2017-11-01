@@ -35,10 +35,21 @@
 //#include <vtkDataSetMapper.h>
 //#include <vtkAppendPolyData.h>
 
+
+#include <pcl/ModelCoefficients.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/project_inliers.h>
+
+
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr model (new pcl::PointCloud<pcl::PointXYZRGB> ());
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr preview_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
 bool app::Application::is_running = true;
 int saving_counter = 0;
+
+
+
 
 
 void printUsage (const char* progName)
@@ -193,7 +204,7 @@ void app::Application::start(int argc, char** argv) {
             // grab currently pre-processed frame
             if (processed_frame.processed) {
 
-                auto start = std::chrono::high_resolution_clock::now();
+
 
                 // Compute transformation
                 Eigen::Affine3f transform = Eigen::Affine3f::Identity();
@@ -208,21 +219,13 @@ void app::Application::start(int argc, char** argv) {
 
                 // this computes and updates model
                 if (options.is_slamming) {
+                    auto start = std::chrono::high_resolution_clock::now();
 
                     // load new frame into octree collision object and compute overlap
                     octree.switchBuffers();
                     octree.setInputCloud(preview_cloud);
                     octree.addPointsFromInputCloud();
                     newPointIdxVector.clear();
-
-
-                    // time benchmark stop
-                    auto end = std::chrono::high_resolution_clock::now();
-                    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                    frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
-                    frames_processed++;
-
-
 
                     // Get vector of point indices from octree voxels which did not exist in previous buffer
                     octree.getPointIndicesFromNewVoxels (newPointIdxVector, 20);
@@ -255,6 +258,12 @@ void app::Application::start(int argc, char** argv) {
 //                        pt.b = 255;
                         model->points.push_back(pt);
                     }
+
+                    // time benchmark stop
+                    auto end = std::chrono::high_resolution_clock::now();
+                    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                    frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
+                    frames_processed++;
                 }
 
 
@@ -298,20 +307,11 @@ void app::Application::start(int argc, char** argv) {
                     }
                     camera_poses_vector.push_back(transform);
 
-
                     // add current camera position
                     std::string sphere_name = "sphere";
                     sphere_name += std::to_string(frames_processed);
                     sphere_names.push_back(sphere_name);
                     viewer->addSphere(camera_pose, 20, 255, 255, 255, sphere_name);
-
-////                        std::cout << "size of difference: " << newPointIdxVector.size() << std::endl;
-//                        // highlight collision points in current frame
-//                        for (auto it = preview_cloud->points.begin(); it != preview_cloud->points.end(); ++it) {
-//                            it->r = 0;
-//                            it->g = 0;
-//                            it->b = 255;
-//                        }
 
                     // visualize world model
                     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
@@ -321,17 +321,90 @@ void app::Application::start(int argc, char** argv) {
 
 
 
-//                        for (std::vector<int>::iterator it = newPointIdxVector.begin();
-//                             it != newPointIdxVector.end(); ++it) {
-//                            preview_cloud->points[*it].r = 255;
-//                            preview_cloud->points[*it].g = 0;
-//                            preview_cloud->points[*it].b = 0;
+
+
+
+                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cropped_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                    int depth_idx = 0;
+                    for (int v = 0; v < 480; ++v)
+                    {
+                        for (int u = 0; u < 640; ++u, ++depth_idx)
+                        {
+                            if (v > 380) {
+                                pcl::PointXYZRGB & pt = preview_cloud->points[depth_idx];
+                                pt.r = 0;
+                                pt.g = 255;
+                                pt.b = 0;
+
+                                cropped_cloud->points.push_back(pt);
+                            }
+                        }
+                    }
+
+//                    *preview_cloud = *cropped_cloud;
+
+
+
+                    // segment plane and display it
+                    pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+                    pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+                    // Create the segmentation object
+                    pcl::SACSegmentation<pcl::PointXYZRGB> seg;
+                    // Optional
+                    seg.setOptimizeCoefficients (false);
+                    // Mandatory
+                    seg.setModelType (pcl::SACMODEL_PERPENDICULAR_PLANE);
+                    seg.setMethodType (pcl::SAC_RANSAC);
+                    seg.setMaxIterations (5000);
+
+                    seg.setDistanceThreshold (1);
+
+                    seg.setInputCloud (cropped_cloud);
+
+                    //because we want a specific plane (X-Z Plane) (In camera coordinates the ground plane is perpendicular to the y axis)
+                    Eigen::Vector3f axis = Eigen::Vector3f(0.0,1.0,0.0); //y axis
+                    seg.setAxis(axis);
+                    seg.setEpsAngle(  10.0f * (PI/180.0f) ); // plane can be within 30 degrees of X-Z plane
+
+                    seg.segment (*inliers, *coefficients);
+
+
+                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr ground_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+
+
+                    if (inliers->indices.size () > 6)
+                    {
+
+                        pcl::ProjectInliers<pcl::PointXYZRGB> proj;
+                        proj.setModelType (pcl::SACMODEL_PLANE);
+                        proj.setInputCloud(preview_cloud);
+                        proj.setModelCoefficients (coefficients);
+                        proj.filter (*ground_cloud);
+
+
+
+                        std::cerr << "Model coefficients: " << coefficients->values[0] << " "
+                                  << coefficients->values[1] << " "
+                                  << coefficients->values[2] << " "
+                                  << coefficients->values[3] << std::endl;
+//
+//                        std::cerr << "Model inliers: " << inliers->indices.size () << std::endl;
+//
+//                        for (size_t i = 0; i < inliers->indices.size (); ++i) {
+//                            preview_cloud->points[inliers->indices[i]].r = 255;
+//                            preview_cloud->points[inliers->indices[i]].g = 0;
+//                            preview_cloud->points[inliers->indices[i]].b = 0;
 //                        }
 
+                    }
+
+
+
+
                     // current cloud visualization
-                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbb(preview_cloud);
-                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgbb, "sample cloud")) {
-                        viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgbb, "sample cloud");
+                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbb(ground_cloud);
+                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "sample cloud")) {
+                        viewer->addPointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "sample cloud");
                     }
                 }
 
@@ -372,7 +445,7 @@ void app::Application::start(int argc, char** argv) {
 
     viewer->close();
     // exit main thread
-    std::cout << "Frame count: " << frames_processed << " avg time of transformation of point cloud: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
+    std::cout << "Frame count: " << frames_processed << " avg time of mapping: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
     std::cout << "Main thread exitting.." << std::endl;
     is_running = false;
 }
