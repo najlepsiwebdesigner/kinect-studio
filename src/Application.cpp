@@ -4,7 +4,8 @@
 
 #include "Application.h"
 
-#include <map>
+#include <math.h>
+//#include <map>
 #include <pcl/common/distances.h>
 #include <pcl/visualization/cloud_viewer.h>
 
@@ -224,7 +225,7 @@ void app::Application::start(int argc, char** argv) {
 //                            pt.r = 0;
 //                            pt.g = 255;
 //                            pt.b = 0;
-                            if (pt.z < 5000) {
+                            if (pt.z < 2000) {
                                 cropped_cloud->points.push_back(pt);
                             }
                         }
@@ -232,7 +233,7 @@ void app::Application::start(int argc, char** argv) {
                 }
 
 
-                std::cout << cropped_cloud->points.size() << std::endl;
+//                std::cout << cropped_cloud->points.size() << std::endl;
 //                    *preview_cloud = *cropped_cloud;
 
 
@@ -264,14 +265,14 @@ void app::Application::start(int argc, char** argv) {
                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr ground_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr tilted_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
 
-                if (inliers->indices.size () > 3000)
+                if (inliers->indices.size () > 2000)
                 {
 
-//                    pcl::ProjectInliers<pcl::PointXYZRGB> proj;
-//                    proj.setModelType (pcl::SACMODEL_PLANE);
-//                    proj.setInputCloud(processed_frame.cloud);
-//                    proj.setModelCoefficients (coefficients);
-//                    proj.filter (*ground_cloud);
+                    pcl::ProjectInliers<pcl::PointXYZRGB> proj;
+                    proj.setModelType (pcl::SACMODEL_PLANE);
+                    proj.setInputCloud(processed_frame.cloud);
+                    proj.setModelCoefficients (coefficients);
+                    proj.filter (*ground_cloud);
 
 
                     // plane model ax + by + cz + d = 0
@@ -299,41 +300,39 @@ void app::Application::start(int argc, char** argv) {
                     floor_plane_normal_vector[1] = coefficients->values[1];
                     floor_plane_normal_vector[2] = coefficients->values[2];
 
-//                        std::cout << floor_plane_normal_vector << std::endl;
+                        std::cout << floor_plane_normal_vector << std::endl;
 
                     xy_plane_normal_vector[0] = 0.0;
                     xy_plane_normal_vector[1] = 1.0;
                     xy_plane_normal_vector[2] = 0.0;
 
 //                        std::cout << xy_plane_normal_vector << std::endl;
-
+//                    floor_plane_normal_vector.normalize();
                     rotation_vector = xy_plane_normal_vector.cross(floor_plane_normal_vector);
-                    rotation_vector.normalize();
-//                        std::cout << "Rotation Vector: "<< rotation_vector << std::endl;
+//                    rotation_vector.normalize();
+                        std::cout << "Rotation Vector: "<< rotation_vector << std::endl;
 
-                    float theta = 0;
+                    long double theta = 0;
 //                    std::cout << rotation_vector[2] << std::endl;
                     // https://stackoverflow.com/questions/14066933/direct-way-of-computing-clockwise-angle-between-2-vectors#comment69460296_16544330
-                    if (rotation_vector[2] > 0) {
-                        theta = acos(floor_plane_normal_vector.dot(xy_plane_normal_vector)/sqrt( floor_plane_normal_vector.norm()) * sqrt(xy_plane_normal_vector.norm()));
+                    if (rotation_vector[2] >= 0) {
+                        theta = atan2(rotation_vector.norm(), xy_plane_normal_vector.dot(floor_plane_normal_vector));
                     } else if (rotation_vector[2] < 0){
-                        theta = PI - acos(floor_plane_normal_vector.dot(xy_plane_normal_vector)/sqrt( floor_plane_normal_vector.norm()) * sqrt(xy_plane_normal_vector.norm()));
-                    } else {
-                        theta = 0;
+                        theta = PI - atan2(rotation_vector.norm(), xy_plane_normal_vector.dot(floor_plane_normal_vector));
                     }
 
-                    theta = theta * -1;
-//                    std::cout << theta << std::endl;
+//                    theta = theta * -1;
+                    std::cout << "Theta: " << theta << std::endl;
 
 
 //                        transform_2.translation() << transform.translation();
                     transform_2.rotate (Eigen::AngleAxisf (theta, rotation_vector));
 
 //                        std::cout << "Transformation matrix: " << std::endl << transform_2.matrix() << std::endl;
-//                    pcl::transformPointCloud (*cropped_cloud, *ground_cloud, transform_2.inverse());
+
                 }
 
-//                *ground_cloud = *cropped_cloud;
+                *cropped_cloud = *ground_cloud; // *cropped_cloud +
 
 
 // ### GROUND CLOUD COMPUTATION END
@@ -351,9 +350,9 @@ void app::Application::start(int argc, char** argv) {
 //                pcl::transformPointCloud (*processed_frame.cloud, *ground_aligned_cloud, transform_2.inverse());
 
 
-                pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform);
+                pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform_2 * transform);
 
-//                pcl::transformPointCloud<pcl::PointXYZRGB>(*tilted_cloud, *ground_cloud,  transform);
+                pcl::transformPointCloud (*cropped_cloud, *ground_cloud, transform_2 * transform );
 
 
 
@@ -468,11 +467,11 @@ void app::Application::start(int argc, char** argv) {
 
 
 
-//// preview cloud visualization
-//                    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> rgbb(ground_cloud, 255,0 ,0);
-//                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "ground ground")) {
-//                        viewer->addPointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "ground ground");
-//                    }
+// preview cloud visualization
+                    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> rgbb(ground_cloud, 255,0 ,0);
+                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "ground ground")) {
+                        viewer->addPointCloud<pcl::PointXYZRGB>(ground_cloud, rgbb, "ground ground");
+                    }
 
 
 
