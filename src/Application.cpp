@@ -36,6 +36,7 @@
 //#include <vtkDataSetMapper.h>
 //#include <vtkAppendPolyData.h>
 
+#include <pcl/surface/convex_hull.h>
 
 #include <pcl/ModelCoefficients.h>
 #include <pcl/sample_consensus/method_types.h>
@@ -75,7 +76,7 @@ void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void
 //    }
     if (event.getKeySym() == "i" && event.keyDown()) {
 
-        pcl::io::savePLYFileBinary(std::to_string(saving_counter) + "-frame.ply", *preview_cloud);
+        pcl::io::savePLYFileBinary(std::to_string(saving_counter) + "-frame.ply", *model);
         std::cout << "Saving frame!" << std::endl;
         saving_counter++;
     }
@@ -184,8 +185,8 @@ void app::Application::start(int argc, char** argv) {
 
 
     // world model and temporary octree used for comparision with previous frame - bugged
-    pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB> world_octree(0.05);
-    pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZRGB> octree(5);
+//    pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB> world_octree(0.05);
+    pcl::octree::OctreePointCloudChangeDetector<pcl::PointXYZRGB> octree(50);
     // indices of collision points between previous frame and current frame
     std::vector<int> newPointIdxVector;
 
@@ -244,22 +245,26 @@ void app::Application::start(int argc, char** argv) {
                 // Create the segmentation object
                 pcl::SACSegmentation<pcl::PointXYZRGB> seg;
                 // Optional
-                seg.setOptimizeCoefficients (false);
+                seg.setOptimizeCoefficients (true);
                 // Mandatory
                 seg.setModelType (pcl::SACMODEL_PERPENDICULAR_PLANE);
                 seg.setMethodType (pcl::SAC_RANSAC);
-                seg.setMaxIterations (5000);
+                seg.setMaxIterations (10000);
 
-                seg.setDistanceThreshold (0.5);
+                seg.setDistanceThreshold (2);
 
                 seg.setInputCloud (cropped_cloud);
 
                 //because we want a specific plane (X-Z Plane) (In camera coordinates the ground plane is perpendicular to the y axis)
                 Eigen::Vector3f axis = Eigen::Vector3f(0.0,1.0,0.0); //y axis
                 seg.setAxis(axis);
-                seg.setEpsAngle(  1.0f * (PI/180.0f) ); // plane can be within 2 degrees of X-Z plane
+                seg.setEpsAngle(  2.0f * (PI/180.0f) ); // plane can be within 2 degrees of X-Z plane
 
                 seg.segment (*inliers, *coefficients);
+
+
+
+//  viewer->addCoordinateSystem (0.5, "axis", 0);
 
 
                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr ground_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -273,6 +278,7 @@ void app::Application::start(int argc, char** argv) {
                     proj.setInputCloud(processed_frame.cloud);
                     proj.setModelCoefficients (coefficients);
                     proj.filter (*ground_cloud);
+
 
 
                     // plane model ax + by + cz + d = 0
@@ -300,7 +306,7 @@ void app::Application::start(int argc, char** argv) {
                     floor_plane_normal_vector[1] = coefficients->values[1];
                     floor_plane_normal_vector[2] = coefficients->values[2];
 
-                        std::cout << floor_plane_normal_vector << std::endl;
+//                        std::cout << floor_plane_normal_vector << std::endl;
 
                     xy_plane_normal_vector[0] = 0.0;
                     xy_plane_normal_vector[1] = 1.0;
@@ -310,7 +316,7 @@ void app::Application::start(int argc, char** argv) {
 //                    floor_plane_normal_vector.normalize();
                     rotation_vector = xy_plane_normal_vector.cross(floor_plane_normal_vector);
 //                    rotation_vector.normalize();
-                        std::cout << "Rotation Vector: "<< rotation_vector << std::endl;
+//                        std::cout << "Rotation Vector: "<< rotation_vector << std::endl;
 
                     long double theta = 0;
 //                    std::cout << rotation_vector[2] << std::endl;
@@ -322,7 +328,7 @@ void app::Application::start(int argc, char** argv) {
                     }
 
 //                    theta = theta * -1;
-                    std::cout << "Theta: " << theta << std::endl;
+//                    std::cout << "Theta: " << theta << std::endl;
 
 
 //                        transform_2.translation() << transform.translation();
@@ -350,15 +356,31 @@ void app::Application::start(int argc, char** argv) {
 //                pcl::transformPointCloud (*processed_frame.cloud, *ground_aligned_cloud, transform_2.inverse());
 
 
-                pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform_2 * transform);
+//                pcl::transformPointCloud<pcl::PointXYZRGB>(*processed_frame.cloud, *preview_cloud, transform_2);
 
-                pcl::transformPointCloud (*cropped_cloud, *ground_cloud, transform_2 * transform );
+//                pcl::transformPointCloud (*cropped_cloud, *ground_cloud, transform );
+
+
+                // Create a Concave Hull representation of the projected inliers
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_hull (new pcl::PointCloud<pcl::PointXYZRGB>);
+                std::vector<pcl::Vertices> vertices_;
+                pcl::ConvexHull<pcl::PointXYZRGB> chull;
+                chull.setInputCloud (ground_cloud);
+                chull.reconstruct (*cloud_hull,vertices_);
+
+
+                if (chull.getDimension() == 2) {
+                    viewer->removePointCloud("hull");
+                    viewer->addPolygonMesh<pcl::PointXYZRGB>(cloud_hull, vertices_, "hull");
+                    std::cout << "HUll updated!" << std::endl;
+                }
+
 
 
 
                 pcl::PointXYZRGB initial_camera_pose(0,0,0);
                 pcl::PointXYZRGB camera_pose;
-                camera_pose = pcl::transformPoint(initial_camera_pose,transform);
+//                camera_pose = pcl::transformPoint(initial_camera_pose,transform_2);
 
 
                 // this computes and updates model
@@ -366,42 +388,51 @@ void app::Application::start(int argc, char** argv) {
                     auto start = std::chrono::high_resolution_clock::now();
 
                     // load new frame into octree collision object and compute overlap
+                    octree.setInputCloud(model);
+                    octree.addPointsFromInputCloud();
                     octree.switchBuffers();
                     octree.setInputCloud(preview_cloud);
                     octree.addPointsFromInputCloud();
                     newPointIdxVector.clear();
 
                     // Get vector of point indices from octree voxels which did not exist in previous buffer
-                    octree.getPointIndicesFromNewVoxels (newPointIdxVector, 20);
+                    octree.getPointIndicesFromNewVoxels (newPointIdxVector, 2);
 
                     // if there is some amount of points missing, add current frame to scene
-                    if (newPointIdxVector.size() > 20000) {
-                        world_octree.setInputCloud(preview_cloud);
-                        world_octree.addPointsFromInputCloud();
+                    if (newPointIdxVector.size() > 2000) {
+//                        std::cout << newPointIdxVector.size() << std::endl;
+//                        world_octree.setInputCloud(preview_cloud);
+//                        world_octree.addPointsFromInputCloud();
+//                          *model += *ground_cloud;
+                        for (auto it = newPointIdxVector.begin (); it != newPointIdxVector.end (); ++it) {
+                            model->points.push_back(preview_cloud->points[*it]);
+                        }
+
 
 //                            std::cout << "Model updated!" << std::endl;
+
                     }
-
-                    // re-render world-model octree as point cloud, using centeroids as new points
-                    auto tree_it = world_octree.begin(9);
-                    auto tree_it_end = world_octree.end();
-
-
-                    model->points.clear();
-                    for (; tree_it != tree_it_end; ++tree_it)
-                    {
-                        Eigen::Vector3f voxel_min, voxel_max;
-                        world_octree.getVoxelBounds(tree_it, voxel_min, voxel_max);
-                        pcl::PointXYZRGB pt;
-                        pt.x = (voxel_min.x() + voxel_max.x()) / 2.0f;
-                        pt.y = (voxel_min.y() + voxel_max.y()) / 2.0f;
-                        pt.z = (voxel_min.z() + voxel_max.z()) / 2.0f;
-
-//                        pt.r = 0;
-//                        pt.g = 140;
-//                        pt.b = 255;
-                        model->points.push_back(pt);
-                    }
+//
+//                    // re-render world-model octree as point cloud, using centeroids as new points
+//                    auto tree_it = world_octree.begin(9);
+//                    auto tree_it_end = world_octree.end();
+//
+////
+//                    model->points.clear();
+//                    for (; tree_it != tree_it_end; ++tree_it)
+//                    {
+//                        Eigen::Vector3f voxel_min, voxel_max;
+//                        world_octree.getVoxelBounds(tree_it, voxel_min, voxel_max);
+//                        pcl::PointXYZRGB pt;
+//                        pt.x = (voxel_min.x() + voxel_max.x()) / 2.0f;
+//                        pt.y = (voxel_min.y() + voxel_max.y()) / 2.0f;
+//                        pt.z = (voxel_min.z() + voxel_max.z()) / 2.0f;
+//
+////                        pt.r = 0;
+////                        pt.g = 140;
+////                        pt.b = 255;
+//                        model->points.push_back(pt);
+//                    }
 
                     // time benchmark stop
                     auto end = std::chrono::high_resolution_clock::now();
@@ -414,12 +445,17 @@ void app::Application::start(int argc, char** argv) {
 
                 if (options.show_3D) {
 
+
+
+
+
+
+                    // camera posietions!!!
                     // remove all previous spheres
                     for (const auto & s_name : sphere_names) {
                         viewer->removeShape(s_name);
                     }
                     sphere_names.clear();
-
 
                     int i = 0;
                     for (const auto & pose: camera_poses_vector) {
@@ -457,11 +493,22 @@ void app::Application::start(int argc, char** argv) {
                     sphere_names.push_back(sphere_name);
                     viewer->addSphere(camera_pose, 20, 255, 255, 255, sphere_name);
 
+                    // end camera poses!
+
+
+
+
+
+
+
+
+
                     // visualize world model
                     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
                     if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
                         viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
                     }
+                    std::cout << "Model size:" <<  model->points.size() << std::endl;
 
 
 
@@ -482,6 +529,13 @@ void app::Application::start(int argc, char** argv) {
                     if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "sample ground")) {
                         viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "sample ground");
                     }
+
+
+
+
+//                    viewer->addCoordinateSystem (0.5, "axis", 0);
+//                    viewer->setBackgroundColor (0.05, 0.05, 0.05, 0);
+//                    viewer->setPosition (800, 400);
                 }
 
 
