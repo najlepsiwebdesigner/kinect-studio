@@ -542,15 +542,13 @@ long CKobuki::loop(void *user_data, TKobukiData &Kobuki_data) {
     }
 
     displacement = (mRight + mLeft)/2;
-    integratedGyroTheta = integratedGyroTheta + dGyroTheta;
-    gx = gx + displacement * cos(integratedGyroTheta + dGyroTheta / 2);
+    // integratedGyroTheta = integratedGyroTheta + dGyroTheta;
 
-    gy = gy + displacement * sin(integratedGyroTheta + dGyroTheta / 2);
+    double dx = displacement * cos(integratedGyroTheta + dGyroTheta / 2);
+    double dy = displacement * sin(integratedGyroTheta + dGyroTheta / 2);
 
-
-
-
-
+    gx = gx + dx;
+    gy = gy + dy;
 
     totalLeft +=dLeft;
     totalRight +=dRight;
@@ -583,6 +581,9 @@ long CKobuki::loop(void *user_data, TKobukiData &Kobuki_data) {
     current_robot_pose.x = currentX;
     current_robot_pose.y = currentY;
     current_robot_pose.theta = currentTheta;
+    current_robot_pose.dx = dx;
+    current_robot_pose.dy = dy;
+    current_robot_pose.dtheta = dGyroTheta;
 
 //    std::cout << "X: " << gx
 //              << " Y: " << gy

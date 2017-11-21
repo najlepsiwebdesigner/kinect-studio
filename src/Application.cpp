@@ -141,8 +141,25 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
 
 
-  long double average_z_movement = 0;
-  int z_movement_counter = 0;
+  // long double average_z_movement = 0;
+  // int z_movement_counter = 0;
+
+  // for (int i = 0; i < good_matches.size(); i++) {
+  //   auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;   
+  //   auto cvPoint2 = keypoints2[matches[i].trainIdx].pt;   
+
+  //   auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
+  //   auto & cloudpoint2 = getCloudPoint(*cloud2, cvPoint2.x,cvPoint2.y);
+
+  //   if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
+  //   if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
+  //   if (fabs(cloudpoint1.y - cloudpoint2.y) > 100) continue;
+
+  //   average_z_movement += fabs(cloudpoint1.z - cloudpoint2.z);
+  //   z_movement_counter++;
+  // }
+
+  // average_z_movement = average_z_movement/z_movement_counter;
 
   for (int i = 0; i < good_matches.size(); i++) {
     auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;   
@@ -153,25 +170,8 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
     if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
     if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
-    if (fabs(cloudpoint1.y - cloudpoint2.y) > 50) continue;
-
-    average_z_movement += fabs(cloudpoint1.z - cloudpoint2.z);
-    z_movement_counter++;
-  }
-
-  average_z_movement = average_z_movement/z_movement_counter;
-
-  for (int i = 0; i < good_matches.size(); i++) {
-    auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;   
-    auto cvPoint2 = keypoints2[matches[i].trainIdx].pt;   
-
-    auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
-    auto & cloudpoint2 = getCloudPoint(*cloud2, cvPoint2.x,cvPoint2.y);
-
-    if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
-    if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
-    if (fabs(cloudpoint1.y - cloudpoint2.y) > 50) continue;
-    if (fabs(cloudpoint1.z - cloudpoint2.z) > (average_z_movement * 1.5) || fabs(cloudpoint1.z - cloudpoint2.z) < (average_z_movement * 0.5)) continue;
+    if (fabs(cloudpoint1.y - cloudpoint2.y) > 100) continue;
+    // if (fabs(cloudpoint1.z - cloudpoint2.z) > (average_z_movement * 1.5) || fabs(cloudpoint1.z - cloudpoint2.z) < (average_z_movement * 0.5)) continue;
 
     // viewer->addSphere(cloudpoint1, 20, 1.0, 0.0, 0.0, "sphere1_" + std::to_string(i));
     // viewer->addSphere(cloudpoint2, 20, 0.0, 0.0, 1.0, "sphere2_" + std::to_string(i));
@@ -186,12 +186,113 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
   boost::shared_ptr< pcl::registration::TransformationEstimation< pcl::PointXYZRGB, pcl::PointXYZRGB > > estPtr;
   estPtr.reset ( new pcl::registration::TransformationEstimationSVD < pcl::PointXYZRGB, pcl::PointXYZRGB > () );
   Eigen::Affine3f transformation_est;
-  estPtr->estimateRigidTransformation ( *feature_cloud1,
-                                        *feature_cloud2,
+  // estPtr->estimateRigidTransformation ( *feature_cloud1,
+  //                                       *feature_cloud2,
+  //                                       transformation_est.matrix());
+
+  
+
+  // std::cout << "number of features: " << feature_cloud1->points.size() << std::endl;
+
+// RANSAC START
+
+
+    const int max_iterations = 100;
+    const int min_support = 5;
+    const float inlier_error_threshold = 30.0f;
+    const int pcount = feature_cloud1->points.size();
+
+    if (pcount < 10) {
+        return Eigen::Affine3f::Identity();
+    }
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr random_features1 (new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr random_features2 (new pcl::PointCloud<pcl::PointXYZRGB>);
+
+    cv::RNG rng;    
+    std::vector<int> best_inliers;
+
+
+    for(int k=0; k<max_iterations; k++) {
+
+        random_features1->clear();
+        random_features2->clear();
+
+        //Select random points
+        for(int i=0; i<min_support; i++) {
+            int idx = rng(pcount);
+            pcl::PointXYZRGB & cpoint1 = feature_cloud1->points[idx];
+            pcl::PointXYZRGB & cpoint2 = feature_cloud2->points[idx];
+
+            random_features1->points.push_back(cpoint1);
+            random_features2->points.push_back(cpoint2);
+        }
+
+        estPtr.reset ( new pcl::registration::TransformationEstimationSVD < pcl::PointXYZRGB, pcl::PointXYZRGB > () );
+        Eigen::Affine3f current_transformation;
+        estPtr->estimateRigidTransformation ( *random_features1,
+                                            *random_features2,
+                                            current_transformation.matrix());
+
+
+        //Get error
+        std::vector<int> inliers;
+        for(int i=0; i<pcount; i++) {
+
+            auto & ppt1 = feature_cloud1->points[i];
+            auto & ppt2 = feature_cloud2->points[i];
+            auto tppt = transformPoint(ppt1, current_transformation);
+
+            double a,b,c, errori = 0;
+            a = tppt.x - ppt2.x;
+            b = tppt.y - ppt2.y;
+            c = tppt.z - ppt2.z;
+            errori = sqrt(a*a+b*b+c*c);
+
+
+            if(errori < inlier_error_threshold) {
+                inliers.push_back(i);
+            }
+        }
+
+
+
+        if(inliers.size() > best_inliers.size()) {
+            best_inliers = inliers;
+        }
+    }
+    std::cout << "Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
+
+
+    // estimate final transformation with inliers
+    random_features1->clear();
+    random_features2->clear();
+
+    for(int i=0; i<best_inliers.size(); i++) {
+        int idx = best_inliers[i];
+
+        pcl::PointXYZRGB & cpoint1 = feature_cloud1->points[idx];
+        pcl::PointXYZRGB & cpoint2 = feature_cloud2->points[idx];
+
+        random_features1->points.push_back(cpoint1);
+        random_features2->points.push_back(cpoint2);
+    }
+
+    estPtr.reset ( new pcl::registration::TransformationEstimationSVD < pcl::PointXYZRGB, pcl::PointXYZRGB > () );
+    Eigen::Affine3f current_transformation;
+    estPtr->estimateRigidTransformation ( *random_features1,
+                                        *random_features2,
                                         transformation_est.matrix());
 
-  // std::cout << "estimated transformation " << std::endl << transformation
 
+
+
+
+
+// RANSAC END
+
+
+// std::cout << "estimated transformation is:  " << transformation_est.matrix() << std::endl;
 
   return transformation_est;
 }
@@ -199,7 +300,21 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
 
 
+void transformationDifference(const Eigen::Affine3f & transform1, const Eigen::Affine3f & transform2, double & angle, double & length) {
+    auto translation1 = transform1.translation();
+    auto translation2 = transform2.translation();
 
+    auto rotation1 = transform1.rotation();
+    auto rotation2 = transform2.rotation();
+
+    auto finalRotation = rotation1 * rotation2.inverse();
+
+    Eigen::AngleAxisf newAngleAxis(finalRotation);
+
+    angle = newAngleAxis.angle();
+    auto result = translation1 - translation2;
+    length = result.norm();
+}
 
 
 
@@ -363,6 +478,9 @@ void app::Application::start(int argc, char** argv) {
             if (processed_frame.processed) {
 
 
+                auto start = std::chrono::high_resolution_clock::now();
+
+
                 Eigen::Affine3f transform;
 
                 // skip first frame transformation estimation
@@ -370,19 +488,31 @@ void app::Application::start(int argc, char** argv) {
                     *preview_cloud = *processed_frame.cloud;
 
                     transform = estimateVisualTransformation(processed_frame, previous_frame);
+                    // visual odometry has to be integrated
                     transform_visual_accumulated = transform_visual_accumulated * transform;
 
-                    std::cout << transform.matrix() << std::endl;
+                    
                 
                 }
 
 
 // Transformation estimation!!!
-                // Eigen::Affine3f transform = processed_frame.transform_odometry;
-                
-                // visual odometry has to be integrated
 
-                transform = transform_visual_accumulated;
+                // double diffAngle, diffLength;
+                // transformationDifference(transform_visual_accumulated, processed_frame.transform_odometry, diffAngle, diffLength);
+                // if (diffLength < 150 && diffAngle <  (10 * PI/180)) {
+                    // transform = processed_frame.transform_odometry;
+                //     transform_visual_accumulated = processed_frame.transform_odometry;
+                // } else {
+                    transform = transform_visual_accumulated;    
+                // }
+                // std::cout << transform.matrix() << std::endl;
+                
+                
+                
+                
+
+                
 
                 pcl::PointXYZRGB initial_camera_pose(0,0,0);
                 pcl::PointXYZRGB camera_pose;
@@ -397,26 +527,25 @@ void app::Application::start(int argc, char** argv) {
 
                 // this computes and updates world model
                 if (options.is_slamming) {
-                    auto start = std::chrono::high_resolution_clock::now();
 
                     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
                     // Create the filtering object
                     pcl::VoxelGrid<pcl::PointXYZRGB> sor;
                     sor.setInputCloud (preview_cloud);
-                    sor.setLeafSize (10, 10, 10);
+                    sor.setLeafSize (20, 20, 20);
                     sor.filter (*cloud_filtered);
 
 
                     *model += *cloud_filtered;
 
-                    // time benchmark stop
-                    auto end = std::chrono::high_resolution_clock::now();
-                    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                    frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
-                    frames_processed++;
+                    
                 }
 
-
+                // time benchmark stop
+                auto end = std::chrono::high_resolution_clock::now();
+                auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
+                frames_processed++;
 
                 if (options.show_3D) {
 
@@ -430,22 +559,14 @@ void app::Application::start(int argc, char** argv) {
                     int i = 0;
                     for (const auto & pose: camera_poses_vector) {
 
-                        auto translation1 = pose.translation();
-                        auto translation2 = transform.translation();
+                        double angle, length;
+                        transformationDifference(pose, transform, angle, length);
 
-                        auto rotation1 = pose.rotation();
-                        auto rotation2 = transform.rotation();
-
-                        auto finalRotation = rotation1 * rotation2.inverse();
-
-                        Eigen::AngleAxisf newAngleAxis(finalRotation);
-
-                        auto angle = newAngleAxis.angle();
-                        auto result = translation1 - translation2;
+                        // std::cout << "angle: " << angle << " length: " << length << std::endl;
 
                         // comparision of 3d transformations from eigen, first number is translation threshold in [mm],
                         // second is angle threshold in [degrees]
-                        if (result.norm() < 150 && angle <  (45 * PI/180)) {
+                        if (length < 150 && angle <  (45 * PI/180)) {
                             pcl::PointXYZRGB cam_pose(0,0,0);
                             cam_pose = pcl::transformPoint(cam_pose,pose);
 

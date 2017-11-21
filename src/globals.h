@@ -26,6 +26,9 @@ struct RobotPose {
     long double x;
     long double y;
     long double theta;
+    long double dx;
+    long double dy;
+    long double dtheta;
 };
 
 struct Options {
