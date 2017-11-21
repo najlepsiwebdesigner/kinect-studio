@@ -90,11 +90,11 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (frame2.cloud);
 
 
-  const int MINIMAL_FEATURE_DISTANCE = 40;
+  const int MAXIMAL_FEATURE_DISTANCE = 10;
   /// ### feature detection ± 13 ms
   //         Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
           // Ptr<AKAZE> detector = AKAZE::create();
-  Ptr<ORB> detector = ORB::create();
+  Ptr<ORB> detector = ORB::create(1500);
   //         Ptr<SIFT> detector = SIFT::create();
   // Ptr<MSER> detector = MSER::create();
   //         Ptr<BRISK> detector = BRISK::create();
@@ -128,7 +128,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
   for( int i = 0; i < matches.size(); i++ ) { 
     // std::cout << "d: " << matches[i].distance << std::endl;
 
-    if( matches[i].distance < MINIMAL_FEATURE_DISTANCE) { 
+    if( matches[i].distance < MAXIMAL_FEATURE_DISTANCE) { 
       good_matches.push_back( matches[i]); 
     }
   }
@@ -153,7 +153,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
   //   if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
   //   if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
-  //   if (fabs(cloudpoint1.y - cloudpoint2.y) > 100) continue;
+  //   if (fabs(cloudpoint1.y - cloudpoint2.y) > 200) continue;
 
   //   average_z_movement += fabs(cloudpoint1.z - cloudpoint2.z);
   //   z_movement_counter++;
@@ -170,7 +170,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
     if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
     if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
-    if (fabs(cloudpoint1.y - cloudpoint2.y) > 100) continue;
+    if (fabs(cloudpoint1.y - cloudpoint2.y) > 200) continue;
     // if (fabs(cloudpoint1.z - cloudpoint2.z) > (average_z_movement * 1.5) || fabs(cloudpoint1.z - cloudpoint2.z) < (average_z_movement * 0.5)) continue;
 
     // viewer->addSphere(cloudpoint1, 20, 1.0, 0.0, 0.0, "sphere1_" + std::to_string(i));
@@ -198,8 +198,8 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
 
     const int max_iterations = 100;
-    const int min_support = 5;
-    const float inlier_error_threshold = 30.0f;
+    const int min_support = 6;
+    const float inlier_error_threshold = 40.0f;
     const int pcount = feature_cloud1->points.size();
 
     if (pcount < 10) {
@@ -500,11 +500,12 @@ void app::Application::start(int argc, char** argv) {
 
                 // double diffAngle, diffLength;
                 // transformationDifference(transform_visual_accumulated, processed_frame.transform_odometry, diffAngle, diffLength);
-                // if (diffLength < 150 && diffAngle <  (10 * PI/180)) {
-                    // transform = processed_frame.transform_odometry;
-                //     transform_visual_accumulated = processed_frame.transform_odometry;
+                // if (diffLength > 150 || diffAngle >  (15 * PI/180)) {
+                    transform = processed_frame.transform_odometry;
+                    // transform_visual_accumulated = processed_frame.transform_odometry;
+                //     std::cout << "fail!" << std::endl;
                 // } else {
-                    transform = transform_visual_accumulated;    
+                    // transform = transform_visual_accumulated;    
                 // }
                 // std::cout << transform.matrix() << std::endl;
                 
