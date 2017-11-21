@@ -32,6 +32,8 @@ namespace app {
         long double y;
         long double theta;
 
+        Eigen::Affine3f transform_odometry;
+
         Frame() :
                 rgbMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
                 depthMat(cv::Size(640, 480), CV_16UC1),

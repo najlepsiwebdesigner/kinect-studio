@@ -48,7 +48,7 @@ namespace app {
 //         Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
 
         std::vector<KeyPoint> keypoints;
-        detector->detect( temp_frame.claheMat, keypoints);
+        detector->detect( temp_frame.rgbMat, keypoints);
 
 
         // keep only 3D keypoints
@@ -152,6 +152,7 @@ namespace app {
         const float centerY = 239.5;
         const float scalingFactor = 1; //5000.0;
         int depth_idx = 0;
+        const float z_thresh = 8000;
 
         for (int v = 0; v < 480; ++v)
         {
@@ -160,11 +161,22 @@ namespace app {
                 pcl::PointXYZRGB & pt = temp_frame.cloud->points[depth_idx];
 
                 pt.z = temp_frame.depthMat.at<uint16_t>(v,u) / scalingFactor;
-                pt.x = (static_cast<float> (u) - centerX) * pt.z / focalLength;
-                pt.y = (static_cast<float> (v) - centerY) * pt.z / focalLength;
-                pt.b = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[0];
-                pt.g = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[1];
-                pt.r = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[2];
+
+                if (pt.z < z_thresh) {
+
+                    pt.x = (static_cast<float> (u) - centerX) * pt.z / focalLength;
+                    pt.y = (static_cast<float> (v) - centerY) * pt.z / focalLength;
+                    pt.b = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[0];
+                    pt.g = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[1];
+                    pt.r = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[2];
+                } else {
+                    pt.x = 0;
+                    pt.y = 0;
+                    pt.z = 0;
+                    pt.r = 0;
+                    pt.g = 0;
+                    pt.b = 0;
+                }
             }
         }
 
@@ -337,6 +349,8 @@ namespace app {
 
 //                bilateralDepth(temp_frame);
 
+
+
                 /// ### generate point cloud ± 11 ms
                 computePointCloud(temp_frame);
 
@@ -350,8 +364,8 @@ namespace app {
 //                 computeClahe(temp_frame);
 
                 /// ### compute keypoints and descriptors
-//                 computeKeypoints(temp_frame);
-//                 computeDescriptors(temp_frame);
+                // computeKeypoints(temp_frame);
+                // computeDescriptors(temp_frame);
 
 
 
