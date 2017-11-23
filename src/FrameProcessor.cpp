@@ -358,11 +358,12 @@ namespace app {
 
 //                 computePointCloudWithNormals(temp_frame);
 
-//               computeBearingAngleImage(temp_frame);
+              // computeBearingAngleImage(temp_frame);
+              // temp_frame.rgbMat = temp_frame.baMat;
 
-                /// ### 5 ms
+                // // ### 5 ms
                 computeClahe(temp_frame);
-                temp_frame.rgbMat = temp_frame.claheMat.clone();
+                // temp_frame.rgbMat = temp_frame.claheMat.clone();
 
                 /// ### compute keypoints and descriptors
                 // computeKeypoints(temp_frame);

@@ -31,6 +31,10 @@ namespace app {
         cv::Mat depth;
         int i = 0;
 
+        long double prevX = 0;
+        long double prevY = 0;
+        long double prevTheta = 0;
+
 
         if (!options.offline) {
             // while we have frames
@@ -55,7 +59,6 @@ namespace app {
                 frame.x = current_robot_pose.x;
                 frame.y = current_robot_pose.y;
                 frame.theta = current_robot_pose.theta;
-
 
                 // Compute odometry transformation
                 Eigen::Affine3f transform = Eigen::Affine3f::Identity();
@@ -82,7 +85,7 @@ namespace app {
                     cv::imwrite(depth_file.str(), frame.depthMat, compression_params);
                     odometry_file << frame.x << " " << frame.y << " " << frame.theta << std::endl;
 
-//                std::cout << "frame name: " <<  rgb_file.str() << std::endl;
+                    // std::cout << "frame name: " <<  rgb_file.str() << std::endl;
                 }
 
                 i++;
@@ -122,7 +125,6 @@ namespace app {
 
                 long double x, y , theta;
                 odometry_file >> frame.x >> frame.y >> frame.theta;
-
 
                 // Compute odometry transformation
                 Eigen::Affine3f transform = Eigen::Affine3f::Identity();
