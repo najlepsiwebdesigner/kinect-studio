@@ -6,8 +6,12 @@ using namespace std;
 
 
 bool OfflineDataSource::getVideoAndDepth(cv::Mat& video, cv::Mat& depth) {
-    if ((iteration >= rgb_filenames.size() || iteration >= depth_filenames.size()) && loop) {
-        iteration = 0;
+    if ((iteration >= rgb_filenames.size() || iteration >= depth_filenames.size())) {
+        if (loop) {
+            iteration = 0;
+        } else {
+            return false;
+        }
     }
 
     cv::Mat videoImage = imread(rgb_filenames[iteration], CV_LOAD_IMAGE_COLOR);

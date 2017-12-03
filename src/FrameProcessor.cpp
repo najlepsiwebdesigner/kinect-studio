@@ -317,87 +317,49 @@ namespace app {
 
 
     void FrameProcessor::run() {
-        /// start measuring for benchmarking
-        std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
-        long long frame_processing_average_milliseconds = 0;
-        long long frames_processed = 0;
+        long long i = 0;
 
+        app::Frame temp_frame;
         while (app::Application::is_running) {
-            app::Frame temp_frame;
+            
             bool process_frame = false;
-            std::lock_guard<std::mutex> mutex_guard(current_frame_mutex);
-
+            
             // check if current_frame has changed, if yes, keep it and mark it for processing
             {
-
+                std::lock_guard<std::mutex> mutex_guard(grabbed_frame_mutex);
+                std::lock_guard<std::mutex> mutex_guard2(processed_frame_mutex);
 
                 // mark this frame as visited and pass it to processing pipeline
-                if (current_frame.unread) {
-                    current_frame.unread = false;
+                if (grabbed_frame.t1_done) {
+                    grabbed_frame.generated = false;
                     process_frame = true;
-                    temp_frame = current_frame;
+                    temp_frame = grabbed_frame;
                 }
             }
 
             // processing pipeline start
             if (process_frame){
-                start = std::chrono::high_resolution_clock::now();
-
-//////////////////////////// processing starts here
-
-//                 thresholdDepth(temp_frame);
-
-//                bilateralDepth(temp_frame);
-
-
-
-                /// ### generate point cloud ± 11 ms
                 computePointCloud(temp_frame);
-
-                 
-
-//                 computePointCloudWithNormals(temp_frame);
-
-              // computeBearingAngleImage(temp_frame);
-              // temp_frame.rgbMat = temp_frame.baMat;
-
-                // // ### 5 ms
-                computeClahe(temp_frame);
-                // temp_frame.rgbMat = temp_frame.claheMat.clone();
-
-                /// ### compute keypoints and descriptors
-                // computeKeypoints(temp_frame);
-                // computeDescriptors(temp_frame);
-
-
-
-
-
-
-
-
-
-//////////////////////////// processing ends here
+                // computeClahe(temp_frame);
+  
                 {
                     // lock currently processed frame
                     std::lock_guard<std::mutex> mutex_guard(processed_frame_mutex);
                     processed_frame = temp_frame;
                     processed_frame.processed = true;
+                    processed_frame.t2_done = true;
+                    grabbed_frame.t2_done = true;
 
                 }
-
-                end = std::chrono::high_resolution_clock::now();
-                auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
-                frames_processed++;
             }
             else {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
+
+            i++;
         }
 
         /// exit thread
-        std::cout << "Frame count: " << frames_processed << " avg time of processing: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
         std::cout << "Processing thread exitting.." << std::endl;
     }
 }

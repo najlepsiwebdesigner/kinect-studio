@@ -11,13 +11,23 @@
 namespace app {
     class FrameMatcher {
     public:
-        FrameMatcher(app::Frame &_visualized_frame, std::mutex &_visualized_frame_mutex):
-                processed_frame(_visualized_frame), processed_frame_mutex(_visualized_frame_mutex) {
+        FrameMatcher(Options options,
+        			 app::Frame &processed_frame, 
+        			 std::mutex &processed_frame_mutex,
+        			 app::Frame &matched_frame,
+        			 std::mutex &matched_frame_mutex):
+        		options(options),
+        		processed_frame(processed_frame),
+        		processed_frame_mutex(processed_frame_mutex),
+                matched_frame(matched_frame), 
+                matched_frame_mutex(matched_frame_mutex) {
         };
 
-
+        Options options;
         Frame & processed_frame;
         std::mutex & processed_frame_mutex;
+        Frame & matched_frame;
+        std::mutex & matched_frame_mutex;
 
         void run();
     };

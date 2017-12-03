@@ -24,15 +24,22 @@ namespace app {
         pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_with_normals;
 
         long long order;
-        bool unread;
+
+        bool generated;
         bool processed;
         bool matched;
+
+        bool t1_done;
+        bool t2_done;
+        bool t3_done;
+        bool t4_done;
 
         long double x;
         long double y;
         long double theta;
 
         Eigen::Affine3f transform_odometry;
+        Eigen::Affine3f transform_visual;
 
         Frame() :
                 rgbMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
@@ -40,9 +47,13 @@ namespace app {
                 baMat(cv::Size(640,480), CV_8UC1),
                 hsvMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
                 claheMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
-                unread(false),
+                generated(false),
                 processed(false),
                 matched(false),
+                t1_done(false),
+                t2_done(false),
+                t3_done(false),
+                t4_done(false),
                 cloud(new pcl::PointCloud<pcl::PointXYZRGB>)
         {
 

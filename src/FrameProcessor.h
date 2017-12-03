@@ -13,22 +13,22 @@ namespace app {
     class FrameProcessor {
     public:
 
-        std::mutex & current_frame_mutex;
-        app::Frame & current_frame;
+        std::mutex & grabbed_frame_mutex;
+        app::Frame & grabbed_frame;
         std::mutex & processed_frame_mutex;
         app::Frame & processed_frame;
         Options options;
 
         FrameProcessor(Options options,
-                       app::Frame & _current_frame,
-                       std::mutex & _current_frame_mutex,
-                       app::Frame & _processed_frame,
-                       std::mutex & _processed_frame_mutex):
+                       app::Frame & grabbed_frame,
+                       std::mutex & grabbed_frame_mutex,
+                       app::Frame & processed_frame,
+                       std::mutex & processed_frame_mutex):
             options(options),
-            current_frame(_current_frame),
-            current_frame_mutex(_current_frame_mutex),
-            processed_frame(_processed_frame),
-            processed_frame_mutex(_processed_frame_mutex)
+            grabbed_frame(grabbed_frame),
+            grabbed_frame_mutex(grabbed_frame_mutex),
+            processed_frame(processed_frame),
+            processed_frame_mutex(processed_frame_mutex)
         {
         };
 

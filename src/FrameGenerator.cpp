@@ -55,7 +55,7 @@ namespace app {
                 frame.depthMat = depth.clone();
 
                 frame.order = i;
-                frame.unread = true;
+                frame.generated = true;
                 frame.x = current_robot_pose.x;
                 frame.y = current_robot_pose.y;
                 frame.theta = current_robot_pose.theta;
@@ -88,13 +88,17 @@ namespace app {
                     // std::cout << "frame name: " <<  rgb_file.str() << std::endl;
                 }
 
-                i++;
 
                 // thread safe write to shared variable
+                //if (grabbed_frame.t2_done || i == 0) 
                 {
-                    std::lock_guard<std::mutex> mutex_guard(current_frame_mutex);
-                    current_frame = frame;
+                    std::lock_guard<std::mutex> mutex_guard(grabbed_frame_mutex);
+                    grabbed_frame = frame;
+                    grabbed_frame.t1_done = true;
                 }
+
+
+                i++;
             }
 
             app::Application::stop();
@@ -121,7 +125,7 @@ namespace app {
                 frame.depthMat = depth.clone();
 
                 frame.order = i;
-                frame.unread = true;
+                frame.generated = true;
 
                 long double x, y , theta;
                 odometry_file >> frame.x >> frame.y >> frame.theta;
@@ -132,16 +136,20 @@ namespace app {
                 transform.rotate (Eigen::AngleAxisf (frame.theta, Eigen::Vector3f::UnitY()));
                 frame.transform_odometry = transform;
 
-                i++;
+                
+
 
                 // thread safe write to shared variable
-                {
-                    std::lock_guard<std::mutex> mutex_guard(current_frame_mutex);
-                    current_frame = frame;
+                if (grabbed_frame.t2_done || i == 0) {
+                    std::lock_guard<std::mutex> mutex_guard(grabbed_frame_mutex);
+                    grabbed_frame = frame;
+                    grabbed_frame.t1_done = true;
                 }
 
+                i++;
+
                 // simulate som frame rate
-                std::this_thread::sleep_for(std::chrono::milliseconds(30));
+                 std::this_thread::sleep_for(std::chrono::milliseconds(30));
             }
 
             app::Application::stop();
