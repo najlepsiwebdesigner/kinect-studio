@@ -242,10 +242,9 @@ void app::Application::start(int argc, char** argv) {
 
     while (is_running) {
 
-
-        // app::Frame temp_frame;
         bool visualize_frame = false;
-            Frame temp_frame;
+        Frame temp_frame;
+        Eigen::Affine3f transform; // transform used in visualizer
         
         // check if current_frame has changed, if yes, keep it and mark it for processing
         {
@@ -255,91 +254,103 @@ void app::Application::start(int argc, char** argv) {
             if (matched_frame.t3_done) {
                 visualize_frame = true;
                 matched_frame.t4_done = true;
-                 temp_frame = matched_frame;
-
+                temp_frame = matched_frame;
             }
         }
 
 
-        Eigen::Affine3f transform;
+        if (visualize_frame) {
 
-        // transform = temp_frame.transform_odometry;
-        transform = temp_frame.transform_visual;
-
-  
-
-        pcl::PointXYZRGB initial_camera_pose(0, 0, 0);
-        pcl::PointXYZRGB camera_pose;
-        camera_pose = pcl::transformPoint(initial_camera_pose, transform);
-
-        pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.cloud, *preview_cloud, transform);
+            auto start = std::chrono::high_resolution_clock::now();
+ 
+            transform = temp_frame.transform_odometry;
+            // transform = temp_frame.transform_visual;
 
 
-        // this computes and updates world model
-        if (options.is_slamming) { 
-
-            pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
-            // Create the filtering object
-            pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-            sor.setInputCloud (preview_cloud);
-            sor.setLeafSize (40, 40, 40);
-            sor.filter (*cloud_filtered);
-            *model += *cloud_filtered;
-
-        } 
-
-        if (options.show_3D) {
-            // add current camera position
-            std::string sphere_name = "sphere";
-            sphere_name += std::to_string(frames_processed);
-            sphere_names.push_back(sphere_name);
-            viewer->addSphere(camera_pose, 20, 255, 255, 255, sphere_name);
-            // end camera poses!
+            pcl::PointXYZRGB initial_camera_pose(0, 0, 0);
+            pcl::PointXYZRGB camera_pose_odometry, camera_pose_visual;
+            camera_pose_visual = pcl::transformPoint(initial_camera_pose, temp_frame.transform_visual);
+            camera_pose_odometry = pcl::transformPoint(initial_camera_pose, temp_frame.transform_odometry);
 
 
-              // visualize world model
-             pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
-             // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
-             if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
-                 viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
-             }
+            // std::cout << temp_frame.transform_odometry.matrix() << std::endl;
+
+            pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.cloud, *preview_cloud, transform);
+
+
+            // this computes and updates world model
+            if (options.is_slamming) { 
+
+                pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                // Create the filtering object
+                pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+                sor.setInputCloud (preview_cloud);
+                sor.setLeafSize (40, 40, 40);
+                sor.filter (*cloud_filtered);
+                *model += *cloud_filtered;
+
+            } 
+
+            if (options.show_3D) {
+                // add current camera positions from visual and odometry 
+                std::string sphere_name = "sphere_odometry_";
+                sphere_name += std::to_string(frames_processed);
+                sphere_names.push_back(sphere_name);
+                viewer->addSphere(camera_pose_odometry, 20, 0, 0, 255, sphere_name);
+                sphere_name = "sphere_visual_";
+                sphere_name += std::to_string(frames_processed);
+                sphere_names.push_back(sphere_name);
+                viewer->addSphere(camera_pose_visual, 20, 255, 0, 0, sphere_name);
+                // end camera poses!
+
+
+                  // visualize world model
+                 pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
+                 // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
+                 if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
+                     viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
+                 }
 
 
 
-            // preview cloud visualization
-            pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbc(preview_cloud);
-            if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "current_cloud")) {
-                viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "current_cloud");
+                // preview cloud visualization
+                pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbc(preview_cloud);
+                if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "current_cloud")) {
+                    viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "current_cloud");
+                }
+
             }
 
+            if (options.show2D) {
+                // // main CV visualization loop, has to be placed in main thread due to plc and opencv's restrictions
+                // cv::Mat depthf(cv::Size(640, 480), CV_8UC1);
+                // temp_frame.depthMat.convertTo(depthf, CV_8UC1, 255.0 / 2048.0);
+
+                // cv::imshow("Video", temp_frame.claheMat);
+                // cv::imshow("Depth", depthf);
+                // // cv::imshow("BA", processed_frame.baMat);
+            }
+
+            // time benchmark stop
+            auto end = std::chrono::high_resolution_clock::now();
+            auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
+            
+            frames_processed++;
+
+            viewer->spinOnce(1);
+
+            char c = cvWaitKey(10);
+            if (c == 27 || viewer->wasStopped()) {
+                std::cout << "char is:" << c << std::endl;
+                is_running = false;
+                break;
+            }
+            else if (c == 115) {
+                options.is_slamming = !options.is_slamming;
+                std::cout << "slamming! " << options.is_slamming << std::endl;
+            }
         }
-
-        if (options.show2D) {
-            // // main CV visualization loop, has to be placed in main thread due to plc and opencv's restrictions
-            // cv::Mat depthf(cv::Size(640, 480), CV_8UC1);
-            // temp_frame.depthMat.convertTo(depthf, CV_8UC1, 255.0 / 2048.0);
-
-            // cv::imshow("Video", temp_frame.claheMat);
-            // cv::imshow("Depth", depthf);
-            // // cv::imshow("BA", processed_frame.baMat);
-        }
-
-        
-        frames_processed++;
-
-        viewer->spinOnce(3);
-
-        char c = cvWaitKey(10);
-        if (c == 27 || viewer->wasStopped()) {
-            std::cout << "char is:" << c << std::endl;
-            is_running = false;
-            break;
-        }
-        else if (c == 115) {
-            options.is_slamming = !options.is_slamming;
-            std::cout << "slamming! " << options.is_slamming << std::endl;
-        }
-
 
     }
 
@@ -356,8 +367,11 @@ void app::Application::start(int argc, char** argv) {
     pcl::io::savePLYFileBinary("model.ply", *model);
     std::cout << "Saving model!" << std::endl;
 
+
     // exit main thread
+    std::cout << "Main thread frame count: " << frames_processed << " avg time of mapping: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
     std::cout << "Main thread exitting.." << std::endl;
+
 
 }
 

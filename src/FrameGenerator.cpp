@@ -60,6 +60,9 @@ namespace app {
                 frame.y = current_robot_pose.y;
                 frame.theta = current_robot_pose.theta;
 
+
+                std::cout << "X: " <<  frame.x << " Y:" << frame.y << " theta: " << frame.theta << std::endl;
+
                 // Compute odometry transformation
                 Eigen::Affine3f transform = Eigen::Affine3f::Identity();
                 transform.translation() << frame.y*1000, 0.0,frame.x*1000;

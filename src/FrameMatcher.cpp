@@ -35,8 +35,8 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2, pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud) {
-    cv::Mat img1 = frame1.rgbMat;
-    cv::Mat img2 = frame2.rgbMat;
+    cv::Mat img1 = frame1.claheMat;
+    cv::Mat img2 = frame2.claheMat;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (frame1.cloud);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (frame2.cloud);
 
@@ -48,8 +48,8 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     // Ptr<ORB> detector = ORB::create(1000);
     //         Ptr<SIFT> detector = SIFT::create();
     // Ptr<MSER> detector = MSER::create();
-    //         Ptr<BRISK> detector = BRISK::create();
-    //         Ptr<KAZE> detector = KAZE::create();
+            // Ptr<BRISK> detector = BRISK::create();
+            // Ptr<KAZE> detector = KAZE::create();
     // Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
 
     std::vector<KeyPoint> keypoints1,keypoints2;
@@ -148,7 +148,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 // RANSAC START
 
 
-    int max_iterations = 250;
+    int max_iterations = 150;
     const int min_support = 5;
     const float inlier_error_threshold = 40.0f;
     const int pcount = feature_cloud1->points.size();
@@ -303,13 +303,13 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     // transform features1 with transformation from ransac and compute ICP
     pcl::transformPointCloud( *random_features1, *random_features1, transformation_est );
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud_icp (new pcl::PointCloud<pcl::PointXYZRGB>);
-    int iterations = 100;
+    int iterations = 50;
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
     icp.setMaximumIterations(iterations);
     icp.setInputSource (random_features1);
     icp.setInputTarget (random_features2);
     icp.setTransformationEpsilon (1e-9);
-    icp.setMaxCorrespondenceDistance (30);
+    icp.setMaxCorrespondenceDistance (50);
     icp.setEuclideanFitnessEpsilon (1);
     icp.setRANSACOutlierRejectionThreshold (1.5);
     icp.align(*transformed_cloud_icp);
@@ -325,7 +325,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
 
 
-    *feature_cloud = *feature_cloud1;
+    // *feature_cloud = *feature_cloud1;
 
 
 
@@ -377,8 +377,8 @@ double calculateMedian(std::vector<double> scores)
 
 // using namespace std::literals;
 void app::FrameMatcher::run() {
-    long long i = 0;
-
+    long long frames_processed = 0;
+    long long frame_processing_average_milliseconds = 0;
 
     // remove this
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
@@ -389,7 +389,6 @@ void app::FrameMatcher::run() {
 
     while (app::Application::is_running) {
         app::Frame temp_frame;
-
         bool match_frame = false;
         
         // check if current_frame has changed, if yes, keep it and mark it for processing
@@ -405,8 +404,11 @@ void app::FrameMatcher::run() {
 
         // processing pipeline start
         if (match_frame){
+            
 
-            if (i != 0) {
+            if (frames_processed != 0) {
+                auto start = std::chrono::high_resolution_clock::now();
+
 
 // algorithm    
                 Eigen::Affine3f transform = Eigen::Affine3f::Identity();
@@ -414,9 +416,17 @@ void app::FrameMatcher::run() {
                 transform_visual_accumulated = transform_visual_accumulated * transform; 
                 temp_frame.transform_visual = transform_visual_accumulated;
 
-                // std::cout << transform.matrix() << std::endl;
+
+
+
+                 // time benchmark stop
+                auto end = std::chrono::high_resolution_clock::now();
+                auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
+                
             }
 
+            frames_processed++;
 
             {
                 // lock currently processed frame
@@ -427,13 +437,14 @@ void app::FrameMatcher::run() {
                 previous_frame = matched_frame;
 
             }
+
         }
         else {
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
 
-        i++;
     }
 
+    std::cout << "Matching thread frame count: " << frames_processed << " avg time of mapping: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
     std::cout << "Frame Matcher exitting..." << std::endl;
 }
