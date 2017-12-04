@@ -251,7 +251,7 @@ void app::Application::start(int argc, char** argv) {
             std::lock_guard<std::mutex> mutex_guard(matched_frame_mutex);
 
             // mark this frame as visited and pass it to processing pipeline
-            if (matched_frame.t3_done) {
+            if (matched_frame.t3_done && !(matched_frame.t4_done)) {
                 visualize_frame = true;
                 matched_frame.t4_done = true;
                 temp_frame = matched_frame;
@@ -263,8 +263,8 @@ void app::Application::start(int argc, char** argv) {
 
             auto start = std::chrono::high_resolution_clock::now();
  
-            transform = temp_frame.transform_odometry;
-            // transform = temp_frame.transform_visual;
+            transform = temp_frame.transform_visual;
+            // transform = temp_frame.transform_odometry;
 
 
             pcl::PointXYZRGB initial_camera_pose(0, 0, 0);
@@ -326,7 +326,7 @@ void app::Application::start(int argc, char** argv) {
                 // cv::Mat depthf(cv::Size(640, 480), CV_8UC1);
                 // temp_frame.depthMat.convertTo(depthf, CV_8UC1, 255.0 / 2048.0);
 
-                // cv::imshow("Video", temp_frame.claheMat);
+                cv::imshow("Video", temp_frame.claheMat);
                 // cv::imshow("Depth", depthf);
                 // // cv::imshow("BA", processed_frame.baMat);
             }
@@ -338,7 +338,7 @@ void app::Application::start(int argc, char** argv) {
             
             frames_processed++;
 
-            viewer->spinOnce(1);
+            viewer->spinOnce(10);
 
             char c = cvWaitKey(10);
             if (c == 27 || viewer->wasStopped()) {

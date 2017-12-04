@@ -39,7 +39,7 @@ namespace app {
 
         /// ### feature detection ± 13 ms
 //         Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
-//         Ptr<AKAZE> detector = AKAZE::create();
+        // Ptr<AKAZE> detector = AKAZE::create();
         Ptr<ORB> detector = ORB::create();
 //         Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
@@ -48,19 +48,19 @@ namespace app {
 //         Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
 
         std::vector<KeyPoint> keypoints;
-        detector->detect( temp_frame.rgbMat, keypoints);
+        detector->detect( temp_frame.claheMat, keypoints);
 
 
-        // keep only 3D keypoints
-        std::vector<cv::KeyPoint> filtered_frame_keypoints;
+        // // keep only 3D keypoints
+        // std::vector<cv::KeyPoint> filtered_frame_keypoints;
 
-        for (int i = 0; i < keypoints.size();i++) {
-            if (temp_frame.depthMat.at<uint16_t>(keypoints[i].pt) != 0) {
-                filtered_frame_keypoints.push_back(keypoints[i]);
-            }
-        }
+        // for (int i = 0; i < keypoints.size();i++) {
+        //     if (temp_frame.depthMat.at<uint16_t>(keypoints[i].pt) != 0) {
+        //         filtered_frame_keypoints.push_back(keypoints[i]);
+        //     }
+        // }
 
-        temp_frame.keypoints = filtered_frame_keypoints;
+        temp_frame.keypoints = keypoints;
     }
 
     void FrameProcessor::computeDescriptors(Frame & temp_frame) {
@@ -78,7 +78,7 @@ namespace app {
 //        Ptr<SURF> extractor = SURF::create();
         Mat descriptors;
 
-        extractor->compute(temp_frame.rgbMat, keypoints, temp_frame.descriptors);
+        extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
 
     }
 
@@ -332,11 +332,12 @@ namespace app {
                 std::lock_guard<std::mutex> mutex_guard2(processed_frame_mutex);
 
                 // mark this frame as visited and pass it to processing pipeline
-                if (grabbed_frame.t1_done) {
+                if (grabbed_frame.t1_done && !(grabbed_frame.t2_done)) {
                     grabbed_frame.generated = false;
                     process_frame = true;
                     temp_frame = grabbed_frame;
-                }
+                    frames_processed++;
+                } 
             }
 
             // processing pipeline start
@@ -346,6 +347,8 @@ namespace app {
 // algorithm!
                 computePointCloud(temp_frame);
                 computeClahe(temp_frame);
+                computeKeypoints(temp_frame);
+                computeDescriptors(temp_frame);
 
 
                 auto end = std::chrono::high_resolution_clock::now();
@@ -364,10 +367,10 @@ namespace app {
                 }
             }
             else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                std::this_thread::sleep_for(std::chrono::milliseconds(5));
             }
 
-            frames_processed++;
+         
         }
 
         /// exit thread

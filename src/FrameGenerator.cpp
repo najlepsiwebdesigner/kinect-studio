@@ -61,7 +61,7 @@ namespace app {
                 frame.theta = current_robot_pose.theta;
 
 
-                std::cout << "X: " <<  frame.x << " Y:" << frame.y << " theta: " << frame.theta << std::endl;
+                // std::cout << "X: " <<  frame.x << " Y:" << frame.y << " theta: " << frame.theta << std::endl;
 
                 // Compute odometry transformation
                 Eigen::Affine3f transform = Eigen::Affine3f::Identity();
@@ -88,6 +88,7 @@ namespace app {
                     cv::imwrite(depth_file.str(), frame.depthMat, compression_params);
                     odometry_file << frame.x << " " << frame.y << " " << frame.theta << std::endl;
 
+                    // std::cout << frame.x << " " << frame.y << " " << frame.theta << std::endl;
                     // std::cout << "frame name: " <<  rgb_file.str() << std::endl;
                 }
 
@@ -139,8 +140,6 @@ namespace app {
                 transform.rotate (Eigen::AngleAxisf (frame.theta, Eigen::Vector3f::UnitY()));
                 frame.transform_odometry = transform;
 
-                
-
 
                 // thread safe write to shared variable
                 if (grabbed_frame.t2_done || i == 0) {
@@ -152,7 +151,7 @@ namespace app {
                 i++;
 
                 // simulate som frame rate
-                 std::this_thread::sleep_for(std::chrono::milliseconds(30));
+                std::this_thread::sleep_for(std::chrono::milliseconds(30));
             }
 
             app::Application::stop();

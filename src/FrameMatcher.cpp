@@ -35,8 +35,12 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2, pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud) {
-    cv::Mat img1 = frame1.claheMat;
-    cv::Mat img2 = frame2.claheMat;
+
+    // static long long iii = 0;
+
+
+    // cv::Mat img1 = frame1.rgbMat;
+    // cv::Mat img2 = frame2.rgbMat;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (frame1.cloud);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (frame2.cloud);
 
@@ -44,7 +48,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     const int MAXIMAL_FEATURE_DISTANCE = 20;
     /// ### feature detection ± 13 ms
     // Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
-    Ptr<AKAZE> detector = AKAZE::create();
+    // Ptr<AKAZE> detector = AKAZE::create();
     // Ptr<ORB> detector = ORB::create(1000);
     //         Ptr<SIFT> detector = SIFT::create();
     // Ptr<MSER> detector = MSER::create();
@@ -52,17 +56,19 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
             // Ptr<KAZE> detector = KAZE::create();
     // Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
 
-    std::vector<KeyPoint> keypoints1,keypoints2;
-    detector->detect( img1, keypoints1);
-    detector->detect( img2, keypoints2);
+    std::vector<KeyPoint> & keypoints1 = frame1.keypoints;
+    std::vector<KeyPoint> & keypoints2 = frame2.keypoints;
+    // detector->detect( img1, keypoints1);
+    // detector->detect( img2, keypoints2);
 
     /// ### feature description
-    Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
+    // Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
     // Ptr<SURF> extractor = SURF::create();
-    Mat descriptors1, descriptors2;
+    Mat & descriptors1 = frame1.descriptors;
+    Mat & descriptors2 = frame2.descriptors;
 
-    extractor->compute(img1, keypoints1, descriptors1);
-    extractor->compute(img2, keypoints2, descriptors2);
+    // extractor->compute(img1, keypoints1, descriptors1);
+    // extractor->compute(img2, keypoints2, descriptors2);
 
     cv::BFMatcher matcher(cv::NORM_HAMMING);
     std::vector<cv::DMatch> matches;
@@ -145,12 +151,18 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
     // std::cout << "number of features: " << feature_cloud1->points.size() << std::endl;
 
+// std::cout << "Estimating! " << iii << std::endl;
+// iii++; 
+
+
+
+
 // RANSAC START
 
 
     int max_iterations = 150;
     const int min_support = 5;
-    const float inlier_error_threshold = 40.0f;
+    const float inlier_error_threshold = 150.0f;
     const int pcount = feature_cloud1->points.size();
 
     if (pcount < 10) {
@@ -164,7 +176,10 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     std::vector<int> best_inliers;
 
 
-    for(int k=0; k<max_iterations; k++) {
+    for(int k=0; k < max_iterations; k++) {
+
+        // std::cout << k << std::endl;
+        // std::cout << "iterations:" << std::endl;
 
         random_features1->clear();
         random_features2->clear();
@@ -175,7 +190,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
         bool skipThisIteration = false;
 
         //Select random points
-        for(int i=0; i<min_support; i++) {
+        for(int i=0; i < min_support; i++) {
             int idx = rng(pcount);
 
             pcl::PointXYZRGB & cpoint1 = feature_cloud1->points[idx];
@@ -186,7 +201,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
                 float distance1 = pcl::geometry::distance(cpoint1, prevcpoint1);
                 float distance2 = pcl::geometry::distance(cpoint2, prevcpoint2);
 
-                if (abs(distance1 - distance2) > 100) {
+                if (abs(distance1 - distance2) > 1000) {
                     skipThisIteration = true;
                     break;
                 }
@@ -202,8 +217,8 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
         }
 
         if (skipThisIteration) {
-            // std::cout << "skipping!" << std::endl;
-            max_iterations++;
+            std::cout << "distance too far!" << std::endl;
+            // max_iterations++;
             continue;
         }
 
@@ -264,7 +279,8 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
         }
 
         if (inliers.size() < 4) {
-            max_iterations++;
+            // max_iterations++;
+            std::cout << "not enough inliers!!" << std::endl;
             continue;
         }
 
@@ -396,8 +412,9 @@ void app::FrameMatcher::run() {
             std::lock_guard<std::mutex> mutex_guard(processed_frame_mutex);
 
             // mark this frame as visited and pass it to processing pipeline
-            if (processed_frame.t2_done) {
+            if (processed_frame.t2_done && !(processed_frame.t3_done)) {
                 match_frame = true;
+                processed_frame.t3_done = true;
                 temp_frame = processed_frame;
             }
         }
@@ -440,7 +457,7 @@ void app::FrameMatcher::run() {
 
         }
         else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
 
     }
