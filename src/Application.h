@@ -12,6 +12,7 @@
 #include "FrameProcessor.h"
 #include "FrameMatcher.h"
 #include "CKobuki.h"
+#include "Logger.h"
 
 
 namespace app {

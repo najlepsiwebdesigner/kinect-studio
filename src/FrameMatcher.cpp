@@ -45,7 +45,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (frame2.cloud);
 
 
-    const int MAXIMAL_FEATURE_DISTANCE = 20;
+    const int MAXIMAL_FEATURE_DISTANCE = 30;
     /// ### feature detection ± 13 ms
     // Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
     // Ptr<AKAZE> detector = AKAZE::create();
@@ -127,7 +127,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
         if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
         if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
-        if (fabs(cloudpoint1.y - cloudpoint2.y) > 100) continue;
+        if (fabs(cloudpoint1.y - cloudpoint2.y) > 150) continue;
         // if (fabs(cloudpoint1.z - cloudpoint2.z) > (average_z_movement * 1.5) || fabs(cloudpoint1.z - cloudpoint2.z) < (average_z_movement * 0.5)) continue;
 
         // viewer->addSphere(cloudpoint1, 20, 1.0, 0.0, 0.0, "sphere1_" + std::to_string(i));
@@ -160,12 +160,12 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 // RANSAC START
 
 
-    int max_iterations = 150;
+    int max_iterations = 100;
     const int min_support = 5;
     const float inlier_error_threshold = 150.0f;
     const int pcount = feature_cloud1->points.size();
 
-    if (pcount < 10) {
+    if (pcount < 6) {
         return Eigen::Affine3f::Identity();
     }
 
@@ -176,7 +176,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     std::vector<int> best_inliers;
 
 
-    for(int k=0; k < max_iterations; k++) {
+    for(int k = 0; k < max_iterations; k++) {
 
         // std::cout << k << std::endl;
         // std::cout << "iterations:" << std::endl;
@@ -217,7 +217,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
         }
 
         if (skipThisIteration) {
-            std::cout << "distance too far!" << std::endl;
+            // std::cout << "distance too far!" << std::endl;
             // max_iterations++;
             continue;
         }
@@ -280,7 +280,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
         if (inliers.size() < 4) {
             // max_iterations++;
-            std::cout << "not enough inliers!!" << std::endl;
+            // std::cout << "not enough inliers!!" << std::endl;
             continue;
         }
 
@@ -288,7 +288,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
             best_inliers = inliers;
         }
     }
-    std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << " Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
+    // std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << " Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
 
 
     // if (best_inliers.size() < 8) {
@@ -319,15 +319,15 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     // transform features1 with transformation from ransac and compute ICP
     pcl::transformPointCloud( *random_features1, *random_features1, transformation_est );
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud_icp (new pcl::PointCloud<pcl::PointXYZRGB>);
-    int iterations = 50;
+    int iterations = 80;
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
     icp.setMaximumIterations(iterations);
     icp.setInputSource (random_features1);
     icp.setInputTarget (random_features2);
     icp.setTransformationEpsilon (1e-9);
-    icp.setMaxCorrespondenceDistance (50);
+    icp.setMaxCorrespondenceDistance (300);
     icp.setEuclideanFitnessEpsilon (1);
-    icp.setRANSACOutlierRejectionThreshold (1.5);
+    icp.setRANSACOutlierRejectionThreshold (1.3);
     icp.align(*transformed_cloud_icp);
 
     if (icp.hasConverged ()){

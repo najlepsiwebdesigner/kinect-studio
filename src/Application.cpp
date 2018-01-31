@@ -49,7 +49,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-
+#include "Logger.h"
 
 using namespace std;
 using namespace std::chrono;
@@ -185,13 +185,25 @@ void app::Application::start(int argc, char** argv) {
     std::mutex matched_frame_mutex;
 
     FrameGenerator frameGenerator(options, grabbed_frame, grabbed_frame_mutex, current_robot_pose,
-                                  current_robot_pose_mutex);
-    FrameProcessor frameProcessor(options, grabbed_frame, grabbed_frame_mutex, processed_frame, processed_frame_mutex);
-    FrameMatcher frameMatcher(options, processed_frame, processed_frame_mutex, matched_frame, matched_frame_mutex);
+                                    current_robot_pose_mutex);
+    FrameProcessor frameProcessor(options, grabbed_frame, grabbed_frame_mutex, 
+                                    processed_frame, processed_frame_mutex);
+    FrameMatcher frameMatcher(options, processed_frame, processed_frame_mutex, 
+                                    matched_frame, matched_frame_mutex);
 
     // control robot here
     std::thread t0([&robot]() {
+       // robot.goStraight(0.3); 
+       // robot.doRotation(PI*2); 
 
+       // robot.goStraight(0.3); 
+       // robot.doRotation(PI/2); 
+
+       // robot.goStraight(0.3); 
+       // robot.doRotation(PI/2); 
+
+       // robot.goStraight(0.3); 
+       // robot.doRotation(PI/2); 
     });
 
     std::thread t1([&frameGenerator]() {
@@ -261,8 +273,17 @@ void app::Application::start(int argc, char** argv) {
 
         if (visualize_frame) {
 
+
+            Logger::log<std::string>("");
+
+
+
             auto start = std::chrono::high_resolution_clock::now();
  
+
+//            positions_visual_file << temp_frame.transform_visual.matrix();
+//            positions_odometry_file << temp_frame.transform_odometry.matrix();
+
             transform = temp_frame.transform_visual;
             // transform = temp_frame.transform_odometry;
 
@@ -296,20 +317,21 @@ void app::Application::start(int argc, char** argv) {
                 std::string sphere_name = "sphere_odometry_";
                 sphere_name += std::to_string(frames_processed);
                 sphere_names.push_back(sphere_name);
-                viewer->addSphere(camera_pose_odometry, 20, 0, 0, 255, sphere_name);
+                viewer->addSphere(camera_pose_odometry, 20, 0, 255, 0, sphere_name);
                 sphere_name = "sphere_visual_";
                 sphere_name += std::to_string(frames_processed);
                 sphere_names.push_back(sphere_name);
                 viewer->addSphere(camera_pose_visual, 20, 255, 0, 0, sphere_name);
                 // end camera poses!
 
-
-                  // visualize world model
-                 pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
-                 // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
-                 if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
-                     viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
-                 }
+                // if (frames_processed % 10 == 0){
+                //       // visualize world model
+                //      pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
+                //      // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
+                //      if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
+                //          viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
+                //      }
+                // }
 
 
 
