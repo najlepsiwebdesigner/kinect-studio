@@ -425,9 +425,9 @@ void app::Application::start(int argc, char** argv) {
             
             frames_processed++;
 
-            viewer->spinOnce(10);
+            viewer->spinOnce(1);
 
-            char c = cvWaitKey(10);
+            char c = cvWaitKey(1);
             if (c == 27 || viewer->wasStopped()) {
                 std::cout << "char is:" << c << std::endl;
                 is_running = false;

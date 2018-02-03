@@ -178,9 +178,9 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 // RANSAC START
 
 
-    int max_iterations = 100;
+    int max_iterations = 500;
     const int min_support = 5;
-    const float inlier_error_threshold = 150.0f;
+    const float inlier_error_threshold = 120.0f;
     const int pcount = feature_cloud1->points.size();
 
     if (pcount < 6) {
@@ -336,7 +336,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     // transform features1 with transformation from ransac and compute ICP
     pcl::transformPointCloud( *random_features1, *random_features1, transformation_est );
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud_icp (new pcl::PointCloud<pcl::PointXYZRGB>);
-    int iterations = 50;
+    int iterations = 100;
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
     icp.setMaximumIterations(iterations);
     icp.setInputSource (random_features1);

@@ -36,7 +36,7 @@ bool KinectDataSource::getVideoAndDepth(cv::Mat& video, cv::Mat& depth, bool & n
 
     if (video_ok && depth_ok) {
         new_frame_arrived = true;
-        std::cout << "new frame!" << std::endl; 
+        // std::cout << "new frame!" << std::endl; 
     } 
     else {
         new_frame_arrived = false;
