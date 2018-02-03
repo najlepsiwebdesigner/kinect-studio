@@ -34,10 +34,28 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 }
 
 
+
+void computeDescriptors(Frame & temp_frame) {
+    using namespace cv;
+    using namespace cv::xfeatures2d;
+
+    auto & keypoints = temp_frame.keypoints;
+
+    /// ### feature description
+    Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
+//        Ptr<SURF> extractor = SURF::create();
+
+    extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
+
+}
+
+
+
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2, pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud) {
 
     // static long long iii = 0;
-
+    computeDescriptors(frame1);
+    computeDescriptors(frame2);
 
     // cv::Mat img1 = frame1.rgbMat;
     // cv::Mat img2 = frame2.rgbMat;
@@ -240,22 +258,21 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
         // Eigen::Vector3f rpy = eigen_R.eulerAngles(0,1,2);
 
         // std::cout << "Euler angles:" << std::endl
-        //          << "roll: " << rpy(0) << std::endl;
-        // std::cout << "pitch: " << rpy(1) << std::endl;
-        // std::cout << "yaw: " << rpy(2) << std::endl;
+        //          << "roll: " << abs(rpy(0) - PI) << std::endl;
+        // std::cout << "pitch: " << abs(rpy(1) - PI) << std::endl;
+        // std::cout << "yaw: " << abs(rpy(2) - PI) << std::endl;
 
-        // std::cout <<<< std::endl;
+        // // std::cout << << std::endl;
 
-        // if (abs(rpy(0))  > (PI - 0.02)
-        //     || abs(rpy(0)) < 0.02
-        //     || abs(rpy(2))  > (PI - 0.02)
-        //     || abs(rpy(2)) < 0.02
-        //     ||  eigen_T(1) > 50) {
-
-        // } else {
-        //   max_iterations++;
-        //   continue;
-        // }
+        // // if (abs(rpy(0) - PI) < 3
+        // //     || abs(rpy(2) - PI)  < 3
+        // //     || abs(rpy(1) - PI) < 3
+        // //     ||  eigen_T(1) > 1000)
+        // // {
+        // //     std::cout << "clipping!" << std::endl;
+        // //     continue;
+        // // } 
+        
 
 
         //Get error
@@ -319,13 +336,13 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     // transform features1 with transformation from ransac and compute ICP
     pcl::transformPointCloud( *random_features1, *random_features1, transformation_est );
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud_icp (new pcl::PointCloud<pcl::PointXYZRGB>);
-    int iterations = 80;
+    int iterations = 50;
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
     icp.setMaximumIterations(iterations);
     icp.setInputSource (random_features1);
     icp.setInputTarget (random_features2);
     icp.setTransformationEpsilon (1e-9);
-    icp.setMaxCorrespondenceDistance (300);
+    icp.setMaxCorrespondenceDistance (200);
     icp.setEuclideanFitnessEpsilon (1);
     icp.setRANSACOutlierRejectionThreshold (1.3);
     icp.align(*transformed_cloud_icp);
@@ -414,7 +431,6 @@ void app::FrameMatcher::run() {
             // mark this frame as visited and pass it to processing pipeline
             if (processed_frame.t2_done && !(processed_frame.t3_done)) {
                 match_frame = true;
-                processed_frame.t3_done = true;
                 temp_frame = processed_frame;
             }
         }
@@ -445,10 +461,14 @@ void app::FrameMatcher::run() {
 
             frames_processed++;
 
+            // std::cout << "Matcher frames processed: " << frames_processed << std::endl;
+
             {
                 // lock currently processed frame
                 std::lock_guard<std::mutex> mutex_guard(matched_frame_mutex);
+                std::lock_guard<std::mutex> mutex_guard2(processed_frame_mutex);
                 matched_frame = temp_frame;
+                // std::cout << "frame matcher: " << temp_frame.x << std::endl;
                 matched_frame.t3_done = true;
                 processed_frame.t3_done = true;
                 previous_frame = matched_frame;
@@ -457,7 +477,7 @@ void app::FrameMatcher::run() {
 
         }
         else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
     }

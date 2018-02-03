@@ -16,7 +16,7 @@ class KinectDataSource : public RgbdDataSource {
         ~KinectDataSource();
         bool getDepth(cv::Mat& output);
         bool getVideo(cv::Mat& output);
-        bool getVideoAndDepth(cv::Mat& video, cv::Mat& depth);
+        bool getVideoAndDepth(cv::Mat& video, cv::Mat& depth, bool & new_frame_arrived);
         Freenect::Freenect * freenect_ptr;
         MyFreenectDevice * device;
         bool recording_enabled = true;

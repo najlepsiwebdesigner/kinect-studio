@@ -26,13 +26,25 @@ bool KinectDataSource::getVideo(cv::Mat& output) {
 }
 
 
-bool KinectDataSource::getVideoAndDepth(cv::Mat& video, cv::Mat& depth) {
+bool KinectDataSource::getVideoAndDepth(cv::Mat& video, cv::Mat& depth, bool & new_frame_arrived) {
+    
+    bool video_ok = device->getVideo(video);
+    bool depth_ok = device->getDepth(depth);
+
     rgb_iteration++;
     depth_iteration++;
-    device->getVideo(video);
-    device->getDepth(depth);
 
-    return true;
+    if (video_ok && depth_ok) {
+        new_frame_arrived = true;
+        std::cout << "new frame!" << std::endl; 
+    } 
+    else {
+        new_frame_arrived = false;
+    }
+
+    return true;    
+
+
 }
 
 

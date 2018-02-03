@@ -29,6 +29,7 @@ namespace app {
 
         cv::Mat video;
         cv::Mat depth;
+        bool new_frame_arrived = false;
         int i = 0;
 
         long double prevX = 0;
@@ -40,13 +41,23 @@ namespace app {
             // while we have frames
             std::ofstream odometry_file("/Volumes/rdisk/odometry.txt");
             KinectDataSource offlineDataSource;
-            while (offlineDataSource.getVideoAndDepth(video, depth)) {
+            while (offlineDataSource.getVideoAndDepth(video, depth, new_frame_arrived)) {
 
                 if (!app::Application::is_running) break;
 
                 if (depth.cols == 0) {
                     continue;
                 }
+
+                if (new_frame_arrived == true) {
+                    // std::cout << "new frame!" << std::endl;
+                }
+                else {
+                    // std::cout << "skip!" << std::endl;
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                    continue;
+                 }
+
 
                 // create frame
                 Frame frame;
@@ -62,6 +73,7 @@ namespace app {
 
 
                 // std::cout << "X: " <<  frame.x << " Y:" << frame.y << " theta: " << frame.theta << std::endl;
+
 
                 // Compute odometry transformation
                 Eigen::Affine3f transform = Eigen::Affine3f::Identity();
@@ -106,7 +118,7 @@ namespace app {
             }
 
             app::Application::stop();
-
+            std::cout << "Generator frame count: " << i << std::endl;
             std::cout << "Generator thread exitting.." << std::endl;
         }
         else {
@@ -131,7 +143,6 @@ namespace app {
                 frame.order = i;
                 frame.generated = true;
 
-                long double x, y , theta;
                 odometry_file >> frame.x >> frame.y >> frame.theta;
 
                 // Compute odometry transformation
@@ -142,8 +153,10 @@ namespace app {
 
 
                 // thread safe write to shared variable
-                if (grabbed_frame.t2_done || i == 0) {
+                if (grabbed_frame.t2_done || i == 0) 
+                {
                     std::lock_guard<std::mutex> mutex_guard(grabbed_frame_mutex);
+                    // std::cout << "Generator: " << frame.x << std::endl;
                     grabbed_frame = frame;
                     grabbed_frame.t1_done = true;
                 }
@@ -151,7 +164,7 @@ namespace app {
                 i++;
 
                 // simulate som frame rate
-                std::this_thread::sleep_for(std::chrono::milliseconds(30));
+                std::this_thread::sleep_for(std::chrono::milliseconds(60));
             }
 
             app::Application::stop();

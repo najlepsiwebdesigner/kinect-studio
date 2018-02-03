@@ -21,10 +21,9 @@
 
 #include <boost/math/special_functions/round.hpp>
 
-// #include <pcl/octree/octree.h>
-// #include <pcl/octree/octree_impl.h>
-
-//#include <pcl/octree/octree_pointcloud_changedetector.h>
+#include <pcl/octree/octree.h>
+#include <pcl/octree/octree_impl.h>
+#include <pcl/octree/octree_pointcloud_changedetector.h>
 
 #include <pcl/console/parse.h>
 //
@@ -126,6 +125,7 @@ void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event, void
 
 void app::Application::start(int argc, char** argv) {
 
+    using namespace pcl;
     // application options
     static Options options;
 
@@ -246,13 +246,27 @@ void app::Application::start(int argc, char** argv) {
     std::vector<std::string> sphere_names;
     // Frame previous_frame;
 
-
+    pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB> octree(20); 
     Eigen::Affine3f transform_visual_accumulated = Eigen::Affine3f::Identity();
     // std::cout << transform_visual_accumulated.matrix() << std::endl;
 
     std::vector<std::string> feature_sphere_names;
 
+
+    std::ofstream positions_visual_file("positions_visual.txt", std::ofstream::trunc);
+    std::ofstream positions_odometry_file("positions_odometry.txt", std::ofstream::trunc);
+
+
     while (is_running) {
+
+
+
+        // std::cout << grabbed_frame.x << " " << processed_frame.x << " " << matched_frame.x << std::endl;
+        // std::cout << grabbed_frame.y << " " << processed_frame.y << " " << matched_frame.y << std::endl;
+        // processed_frame.x++;
+        // std::cout << grabbed_frame.x << " " << processed_frame.x << " " << matched_frame.x << std::endl;
+
+
 
         bool visualize_frame = false;
         Frame temp_frame;
@@ -274,7 +288,7 @@ void app::Application::start(int argc, char** argv) {
         if (visualize_frame) {
 
 
-            Logger::log<std::string>("");
+            // Logger::log<std::string>("");
 
 
 
@@ -300,15 +314,66 @@ void app::Application::start(int argc, char** argv) {
 
 
             // this computes and updates world model
-            if (options.is_slamming) { 
+            if (options.is_slamming && frames_processed % 10 == 0) { 
 
                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
                 // Create the filtering object
                 pcl::VoxelGrid<pcl::PointXYZRGB> sor;
                 sor.setInputCloud (preview_cloud);
-                sor.setLeafSize (40, 40, 40);
+                sor.setLeafSize (60, 60, 60);
                 sor.filter (*cloud_filtered);
                 *model += *cloud_filtered;
+ 
+
+                // 
+    //             //create octree structure 
+    //             octree.setInputCloud(preview_cloud); 
+    //             // update bounding box automatically 
+    //             // octree.defineBoundingBox(); 
+    //             // add points in the tree 
+    //             octree.addPointsFromInputCloud(); 
+    //             // model->points.clear(); 
+
+
+    //             pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it; 
+    //             pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it_end = octree.end(); 
+
+    //             for (tree_it = octree.begin(10); tree_it!=tree_it_end; ++tree_it) 
+    //             { 
+    //                 Eigen::Vector3f voxel_min, voxel_max; 
+    //                 octree.getVoxelBounds(tree_it, voxel_min, voxel_max); 
+    //                 pcl::PointXYZRGB pt; 
+    //                 pt.x = (voxel_min.x() + voxel_max.x()) / 2.0f; 
+    //                 pt.y = (voxel_min.y() + voxel_max.y()) / 2.0f; 
+    //                 pt.z = (voxel_min.z() + voxel_max.z()) / 2.0f; 
+
+
+    // //                                if (max_cloud_height < pt.y) { 
+    // //                                    max_cloud_height = pt.y; 
+    // //                                } 
+    // //                                if (min_cloud_height > pt.y) { 
+    // //                                    min_cloud_height = pt.y; 
+    // //                                } 
+
+    //                 pt.r = 255; 
+    //                 pt.g = 255; 
+    //                 pt.b = 255; 
+    //                 model->points.push_back(pt); 
+    //             } 
+    // 
+    //                            double scale = max_cloud_height - min_cloud_height; 
+    //                            for (auto & point : model->points) { 
+    // 
+    //                                double percentage_of_color = (point.y - min_cloud_height) * 100 / scale; 
+    //                                std::cout << point.y << " of:" << scale  << " min:" << min_cloud_height << " max: " << max_cloud_height << " %: " << percentage_of_color << std::endl; 
+    // 
+    //                                point.r = 50; 
+    //                                point.g = round(255 * percentage_of_color); 
+    //                                point.b = round(255 * percentage_of_color); 
+    //                            } 
+
+                // global model growing 
+                // *model += *preview_cloud;
 
             } 
 
@@ -324,14 +389,14 @@ void app::Application::start(int argc, char** argv) {
                 viewer->addSphere(camera_pose_visual, 20, 255, 0, 0, sphere_name);
                 // end camera poses!
 
-                // if (frames_processed % 10 == 0){
-                //       // visualize world model
-                //      pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
-                //      // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
-                //      if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
-                //          viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
-                //      }
-                // }
+                if (frames_processed % 10 == 0){
+                      // visualize world model
+                     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
+                     // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
+                     if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
+                         viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
+                     }
+                }
 
 
 
@@ -391,7 +456,7 @@ void app::Application::start(int argc, char** argv) {
 
 
     // exit main thread
-    std::cout << "Main thread frame count: " << frames_processed << " avg time of mapping: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
+    std::cout << "Main thread frame count: " << frames_processed << " avg time of visualization: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
     std::cout << "Main thread exitting.." << std::endl;
 
 

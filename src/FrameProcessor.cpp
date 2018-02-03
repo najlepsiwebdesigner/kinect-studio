@@ -39,13 +39,13 @@ namespace app {
 
         /// ### feature detection ± 13 ms
 //         Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
-        // Ptr<AKAZE> detector = AKAZE::create();
-        Ptr<ORB> detector = ORB::create();
+       // Ptr<AKAZE> detector = AKAZE::create();
+        Ptr<ORB> detector = ORB::create(2000);
 //         Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
-//         Ptr<BRISK> detector = BRISK::create();
+        // Ptr<BRISK> detector = BRISK::create();
 //         Ptr<KAZE> detector = KAZE::create();
-//         Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
+         // Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
 
         std::vector<KeyPoint> keypoints;
         detector->detect( temp_frame.claheMat, keypoints);
@@ -329,14 +329,13 @@ namespace app {
             // check if current_frame has changed, if yes, keep it and mark it for processing
             {
                 std::lock_guard<std::mutex> mutex_guard(grabbed_frame_mutex);
-                std::lock_guard<std::mutex> mutex_guard2(processed_frame_mutex);
+                // std::lock_guard<std::mutex> mutex_guard2(processed_frame_mutex);
 
                 // mark this frame as visited and pass it to processing pipeline
                 if (grabbed_frame.t1_done && !(grabbed_frame.t2_done)) {
-                    grabbed_frame.generated = false;
+                    // grabbed_frame.generated = false;
                     process_frame = true;
                     temp_frame = grabbed_frame;
-                    frames_processed++;
                 } 
             }
 
@@ -348,7 +347,7 @@ namespace app {
                 computePointCloud(temp_frame);
                 computeClahe(temp_frame);
                 computeKeypoints(temp_frame);
-                computeDescriptors(temp_frame);
+                // computeDescriptors(temp_frame);
 
 
                 auto end = std::chrono::high_resolution_clock::now();
@@ -356,10 +355,14 @@ namespace app {
                 frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
                 frames_processed++;
 
+
+
                 {
                     // lock currently processed frame
                     std::lock_guard<std::mutex> mutex_guard(processed_frame_mutex);
+                    std::lock_guard<std::mutex> mutex_guard2(grabbed_frame_mutex);
                     processed_frame = temp_frame;
+                    // std::cout << "processor: " << temp_frame.x << std::endl;
                     processed_frame.processed = true;
                     processed_frame.t2_done = true;
                     grabbed_frame.t2_done = true;
@@ -367,7 +370,7 @@ namespace app {
                 }
             }
             else {
-                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
 
          
