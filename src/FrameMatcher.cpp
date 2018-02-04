@@ -391,6 +391,8 @@ void app::FrameMatcher::run() {
                     transform_visual_accumulated = transform_visual_accumulated * transform; 
                     temp_frame.transform_visual = transform_visual_accumulated;
 
+                    // pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.feature_cloud, *temp_frame.cloud, transform);
+
                     map_model.insertFrame(temp_frame);
                 }
 

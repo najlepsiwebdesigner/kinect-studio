@@ -307,8 +307,8 @@ void app::Application::start(int argc, char** argv) {
                 {
                     std::lock_guard<std::mutex> mutex_guard(map_model_mutex);
                     if (map_model.is_ready) {
-                        Frame predicted_frame = map_model.getPredictedFrame();
-                        pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *cloud_filtered, transform);
+                        // Frame predicted_frame = map_model.getPredictedFrame();
+                        // pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *cloud_filtered, transform);
                         // if (predicted_frame.cloud->points.size() > 0)
                         *model = *cloud_filtered;
                     }
