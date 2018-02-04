@@ -328,7 +328,7 @@ void app::Application::start(int argc, char** argv) {
                 sor.setLeafSize (60, 60, 60);
                 sor.filter (*cloud_filtered);
             
-                *model = *predicted_frame.cloud;
+                *model = *mapModel.feature_cloud;
  
 
                 // 
