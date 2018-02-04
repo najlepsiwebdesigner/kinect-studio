@@ -30,6 +30,9 @@ namespace app {
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud;
         std::vector<cv::DMatch> good_feature_matches;
 
+        std::vector<long> model_indices;
+        bool is_predicted;
+
         long long order;
 
         bool generated;
@@ -61,6 +64,7 @@ namespace app {
                 t2_done(false),
                 t3_done(false),
                 t4_done(false),
+                is_predicted(false),
                 cloud(new pcl::PointCloud<pcl::PointXYZRGB>),
                 feature_cloud(new pcl::PointCloud<pcl::PointXYZRGB>)
         {

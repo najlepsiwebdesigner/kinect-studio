@@ -175,6 +175,9 @@ void app::Application::start(int argc, char** argv) {
     }
 
 
+    MapModel map_model;
+    std::mutex map_model_mutex;
+
     // holds latest captured frame from data source
     Frame grabbed_frame;
     std::mutex grabbed_frame_mutex;
@@ -191,7 +194,8 @@ void app::Application::start(int argc, char** argv) {
     FrameProcessor frameProcessor(options, grabbed_frame, grabbed_frame_mutex, 
                                     processed_frame, processed_frame_mutex);
     FrameMatcher frameMatcher(options, processed_frame, processed_frame_mutex, 
-                                    matched_frame, matched_frame_mutex);
+                                    matched_frame, matched_frame_mutex,
+                                    map_model, map_model_mutex);
 
     // control robot here
     std::thread t0([&robot]() {
@@ -254,12 +258,8 @@ void app::Application::start(int argc, char** argv) {
 
     std::vector<std::string> feature_sphere_names;
 
-
     std::ofstream positions_visual_file("positions_visual.txt", std::ofstream::trunc);
     std::ofstream positions_odometry_file("positions_odometry.txt", std::ofstream::trunc);
-
-
-    MapModel mapModel;
 
     while (is_running) {
 
@@ -282,53 +282,38 @@ void app::Application::start(int argc, char** argv) {
 
         if (visualize_frame) {
 
-
             // Logger::log<std::string>("");
-
-
-
             auto start = std::chrono::high_resolution_clock::now();
  
-
-//            positions_visual_file << temp_frame.transform_visual.matrix();
-//            positions_odometry_file << temp_frame.transform_odometry.matrix();
-
             transform = temp_frame.transform_visual;
             // transform = temp_frame.transform_odometry;
-
 
             pcl::PointXYZRGB initial_camera_pose(0, 0, 0);
             pcl::PointXYZRGB camera_pose_odometry, camera_pose_visual;
             camera_pose_visual = pcl::transformPoint(initial_camera_pose, temp_frame.transform_visual);
             camera_pose_odometry = pcl::transformPoint(initial_camera_pose, temp_frame.transform_odometry);
 
-
-            mapModel.insertFrame(temp_frame);
-
-            // for (const auto & match : temp_frame.good_feature_matches) {
-            //     auto & point = temp_frame.feature_cloud->points[match.queryIdx];
-            //     point.r = 255;
-            //     point.g = 0;
-            //     point.b = 0;
-            // }
-            
-            Frame predicted_frame = mapModel.getPredictedFrame();
-            // std::cout << "NUmber of points in predicted frame: " << predicted_frame.cloud->points.size() << std::endl;
-
             pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.cloud, *preview_cloud, transform);
-
 
             // this computes and updates world model
             if (options.is_slamming && frames_processed % 1 == 0) { 
 
                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
-                // Create the filtering object
-                pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-                sor.setInputCloud (preview_cloud);
-                sor.setLeafSize (60, 60, 60);
-                sor.filter (*cloud_filtered);
-            
-                *model = *predicted_frame.cloud;
+                // // Create the filtering object
+                // pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+                // sor.setInputCloud (preview_cloud);
+                // sor.setLeafSize (60, 60, 60);
+                // sor.filter (*cloud_filtered);
+                {
+                    std::lock_guard<std::mutex> mutex_guard(map_model_mutex);
+                    if (map_model.is_ready) {
+                        Frame predicted_frame = map_model.getPredictedFrame();
+                        pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *cloud_filtered, transform);
+                        // if (predicted_frame.cloud->points.size() > 0)
+                        *model = *cloud_filtered;
+                    }
+                }
+                
  
 
                 // 

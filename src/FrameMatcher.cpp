@@ -55,7 +55,10 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     const int MAXIMAL_FEATURE_DISTANCE = 30;
 
     computeDescriptors(frame1);
-    computeDescriptors(frame2);
+
+    if (!frame2.is_predicted) {
+        computeDescriptors(frame2);
+    }
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (frame1.cloud);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (frame2.cloud);
@@ -84,22 +87,22 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
 
 
-// create feature cloud for currently processed frame
-for (int i = 0; i < keypoints1.size(); i++) {
-    auto cvPoint = keypoints1[i].pt;
-    auto & cloudpoint = getCloudPoint(*cloud1, cvPoint.x, cvPoint.y);
-    frame1.feature_cloud->points.push_back(cloudpoint);
-}
+    // create feature cloud for currently processed frame
+    for (int i = 0; i < keypoints1.size(); i++) {
+        auto cvPoint = keypoints1[i].pt;
+        auto & cloudpoint = getCloudPoint(*cloud1, cvPoint.x, cvPoint.y);
+        frame1.feature_cloud->points.push_back(cloudpoint);
+    }
 
     for (int i = 0; i < matches.size(); i++) {
         bool is_good_match = false;
 
         if( matches[i].distance < MAXIMAL_FEATURE_DISTANCE) {
             auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;
-            auto cvPoint2 = keypoints2[matches[i].trainIdx].pt;
-
             auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
-            auto & cloudpoint2 = getCloudPoint(*cloud2, cvPoint2.x,cvPoint2.y);
+
+            auto cvPoint2 = keypoints2[matches[i].trainIdx].pt;
+            auto & cloudpoint2 = (frame2.is_predicted ? cloud2->points[matches[i].trainIdx] : getCloudPoint(*cloud2, cvPoint2.x,cvPoint2.y));
 
             if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
             if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
@@ -130,6 +133,7 @@ for (int i = 0; i < keypoints1.size(); i++) {
     const int pcount = feature_cloud1->points.size();
 
     if (pcount < 6) {
+        std::cout << "Not enough features!" << std::endl;
         return Eigen::Affine3f::Identity();
     }
 
@@ -224,7 +228,7 @@ for (int i = 0; i < keypoints1.size(); i++) {
             best_inliers = inliers;
         }
     }
-    // std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << " Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
+    std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << " Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
 
 
     // if (best_inliers.size() < 8) {
@@ -285,7 +289,7 @@ for (int i = 0; i < keypoints1.size(); i++) {
 // RANSAC END
 
 
-// std::cout << "estimated transformation is:  " << transformation_est.matrix() << std::endl;
+std::cout << "estimated transformation is:  " << transformation_est.matrix() << std::endl;
 
     return transformation_est;
 }
@@ -361,15 +365,24 @@ void app::FrameMatcher::run() {
             if (frames_processed != 0) {
                 auto start = std::chrono::high_resolution_clock::now();
 
+                {
+                    std::lock_guard<std::mutex> mutex_guard(map_model_mutex);
+                    
+                    Frame tmp_frame;
+                    if (map_model.is_ready) {
+                        tmp_frame = map_model.getPredictedFrame();
+                    } else {
+                        tmp_frame = previous_frame;
+                    }
+                
+                    // algorithm    
+                    Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+                    transform = estimateVisualTransformation(temp_frame, tmp_frame);
+                    transform_visual_accumulated = transform_visual_accumulated * transform; 
+                    temp_frame.transform_visual = transform_visual_accumulated;
 
-// algorithm    
-                Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-                transform = estimateVisualTransformation(temp_frame, previous_frame); 
-                transform_visual_accumulated = transform_visual_accumulated * transform; 
-                temp_frame.transform_visual = transform_visual_accumulated;
-
-
-
+                    map_model.insertFrame(temp_frame);
+                }
 
                  // time benchmark stop
                 auto end = std::chrono::high_resolution_clock::now();
@@ -377,6 +390,7 @@ void app::FrameMatcher::run() {
                 frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
                 
             }
+
 
             frames_processed++;
 
