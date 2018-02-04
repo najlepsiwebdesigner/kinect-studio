@@ -39,8 +39,8 @@ namespace app {
 
         /// ### feature detection ± 13 ms
 //         Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
-       // Ptr<AKAZE> detector = AKAZE::create();
-        Ptr<ORB> detector = ORB::create(5000);
+       Ptr<AKAZE> detector = AKAZE::create();
+        // Ptr<ORB> detector = ORB::create(2500);
 //         Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
         // Ptr<BRISK> detector = BRISK::create();

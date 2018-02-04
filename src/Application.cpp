@@ -387,7 +387,7 @@ void app::Application::start(int argc, char** argv) {
                      
                      if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
                          viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
-                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "model");
+                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "model");
                      }
 
                      

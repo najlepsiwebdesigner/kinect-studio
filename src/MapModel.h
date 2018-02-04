@@ -15,6 +15,7 @@ public:
 	std::vector<cv::KeyPoint> keypoints;
 	// these contain all camera poses from visual odometry
 	std::vector<Eigen::Affine3f> camera_poses;
+	std::vector<int> indices_hit_count;
 
 	// will be set to true after first successful insertion 
 	bool is_ready = false;
@@ -31,20 +32,68 @@ public:
 	void insertFrame(Frame & frame) {
 		std::vector<int> inserted_feature_indices;
 
-//		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_feature_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-//        pcl::transformPointCloud<pcl::PointXYZRGB>(*frame.feature_cloud, *transformed_feature_cloud, frame.transform_visual);
+		// std::cout << frame.model_indices.size() << std::endl;
+		// std::cout << frame.feature_cloud->points.size() << std::endl;
+
+		// pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_feature_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        // pcl::transformPointCloud<pcl::PointXYZRGB>(*frame.feature_cloud, *transformed_feature_cloud, frame.transform_visual);
         // *frame.feature_cloud = *transformed_feature_cloud;
 
         // std::cout << "feature points: " << feature_cloud->points.size() << std::endl;
         // std::cout << "matches: " << frame.good_feature_matches.size() << std::endl;
 
+		int fused_points = 0;
 		for (int i = 0; i < frame.feature_cloud->points.size();i++) {
-			feature_cloud->points.push_back(frame.feature_cloud->points[i]);
-			descriptors.push_back(frame.descriptors.row(i));
-			keypoints.push_back(frame.keypoints[i]);
-			
-			inserted_feature_indices.push_back(feature_cloud->points.size() - 1);
+			// fuse this point
+			int current_model_index = frame.model_indices[i];
+			if (current_model_index != -1 && false) {
+				// raise counter on this point hit counter
+				indices_hit_count[current_model_index]++;
+
+
+				// // average of current measurement and previous value
+				// feature_cloud->points[current_model_index].x = (feature_cloud->points[current_model_index].x + frame.feature_cloud->points[i].x)/2;
+				// feature_cloud->points[current_model_index].y = (feature_cloud->points[current_model_index].y + frame.feature_cloud->points[i].y)/2;
+				// feature_cloud->points[current_model_index].z = (feature_cloud->points[current_model_index].z + frame.feature_cloud->points[i].z)/2;
+
+				// // // new value
+				// feature_cloud->points[current_model_index].x = frame.feature_cloud->points[i].x;
+				// feature_cloud->points[current_model_index].y = frame.feature_cloud->points[i].y;
+				// feature_cloud->points[current_model_index].z = frame.feature_cloud->points[i].z;
+
+// // running average
+// feature_cloud->points[current_model_index].x = 
+// 	(feature_cloud->points[current_model_index].x * (indices_hit_count[current_model_index] -1) 
+// 	+ frame.feature_cloud->points[i].x) 
+// 	/ indices_hit_count[current_model_index];
+
+// feature_cloud->points[current_model_index].y = 
+// 	(feature_cloud->points[current_model_index].y * (indices_hit_count[current_model_index] -1) 
+// 	+ frame.feature_cloud->points[i].y) 
+// 	/ indices_hit_count[current_model_index];
+	
+// feature_cloud->points[current_model_index].z = 
+// 	(feature_cloud->points[current_model_index].z * (indices_hit_count[current_model_index] -1) 
+// 	+ frame.feature_cloud->points[i].z) 
+// 	/ indices_hit_count[current_model_index];
+
+
+				descriptors.row(current_model_index) = frame.descriptors.row(i);
+				keypoints[current_model_index] = frame.keypoints[i];
+				fused_points++;
+				inserted_feature_indices.push_back(current_model_index);
+			}
+			else {
+				feature_cloud->points.push_back(frame.feature_cloud->points[i]);
+				descriptors.push_back(frame.descriptors.row(i));
+				keypoints.push_back(frame.keypoints[i]);	
+				indices_hit_count.push_back(0);
+				inserted_feature_indices.push_back(feature_cloud->points.size() - 1);
+			}
 		}
+
+        // std::cout << "feature points: " << frame.feature_cloud->points.size() << std::endl;
+        // std::cout << "fused points: " << fused_points << std::endl;
 
 		camera_poses.push_back(frame.transform_visual);
 		camera_poses_to_indices.push_back(inserted_feature_indices);
@@ -53,6 +102,7 @@ public:
 	}
 
 	Frame getPredictedFrame() {
+
 		Frame predicted_frame;
 		std::vector<int> feature_point_indices;
 
@@ -78,7 +128,22 @@ public:
 		// std::cout << "feature_point_indices_size: " << feature_point_indices.size() << std::endl;
 		// std::cout << "camera_poses_to_indices_size: " << camera_poses_to_indices.size() << std::endl;
 
+		// int good_indices_counter = 0;
+		// for (int i = 0; i < feature_point_indices.size(); i++) {
+		// 	if (indices_hit_count[i] > 0) {
+		// 		good_indices_counter++;
+		// 	}
+		// }		
+		// std::cout << "multi hit indices count: " << good_indices_counter << std::endl;
+		// bool only_multi_features = good_indices_counter > 0;
+
+
+// sort( feature_point_indices.begin(), feature_point_indices.end() );
+// feature_point_indices.erase( unique( feature_point_indices.begin(), feature_point_indices.end() ), feature_point_indices.end() );
+
 		for (int i = 0; i < feature_point_indices.size(); i++) {
+			// if (only_multi_features && indices_hit_count[feature_point_indices[i]] < 1) continue; 
+		
 			predicted_frame.cloud->points.push_back(feature_cloud->points[feature_point_indices[i]]);
 			predicted_frame.descriptors.push_back(descriptors.row(feature_point_indices[i]));
 			predicted_frame.keypoints.push_back(keypoints[feature_point_indices[i]]);

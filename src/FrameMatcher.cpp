@@ -52,7 +52,7 @@ void computeDescriptors(Frame & temp_frame) {
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
-    const int MAXIMAL_FEATURE_DISTANCE = 30;
+    const int MAXIMAL_FEATURE_DISTANCE = 20;
 
     computeDescriptors(frame1);
 
@@ -92,7 +92,10 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
         auto cvPoint = keypoints1[i].pt;
         auto & cloudpoint = getCloudPoint(*cloud1, cvPoint.x, cvPoint.y);
         frame1.feature_cloud->points.push_back(cloudpoint);
+        frame1.model_indices.push_back(-1);
     }
+
+    // frame1.model_indices.clear();
 
     for (int i = 0; i < matches.size(); i++) {
         bool is_good_match = false;
@@ -106,7 +109,14 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
             if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
             if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
-            
+            if (fabs(cloudpoint1.y - cloudpoint2.y) > 150) continue; 
+
+            if (frame2.is_predicted) {
+                auto model_index_predicted = frame2.model_indices[matches[i].trainIdx];
+                // std::cout << model_index_predicted << std::endl;
+                frame1.model_indices[matches[i].queryIdx] = model_index_predicted;
+            }
+
             feature_cloud1->points.push_back(cloudpoint1);
             feature_cloud2->points.push_back(cloudpoint2);
 
@@ -127,7 +137,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
 
 // RANSAC START
-    int max_iterations = 500;
+    int max_iterations = 1000;
     const int min_support = 5;
     const float inlier_error_threshold = 120.0f;
     const int pcount = feature_cloud1->points.size();
@@ -228,7 +238,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
             best_inliers = inliers;
         }
     }
-    std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << " Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
+    // std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << " Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
 
 
     // if (best_inliers.size() < 8) {
@@ -289,7 +299,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 // RANSAC END
 
 
-std::cout << "estimated transformation is:  " << transformation_est.matrix() << std::endl;
+// std::cout << "estimated transformation is:  " << transformation_est.matrix() << std::endl;
 
     return transformation_est;
 }
