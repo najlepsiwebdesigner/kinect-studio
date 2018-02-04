@@ -7,6 +7,10 @@
 
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include "opencv2/features2d.hpp"
+#include "opencv2/xfeatures2d.hpp"
+
 
 namespace app {
     class Frame {
@@ -22,6 +26,9 @@ namespace app {
 
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
         pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_with_normals;
+
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud;
+        std::vector<cv::DMatch> good_feature_matches;
 
         long long order;
 
@@ -54,7 +61,8 @@ namespace app {
                 t2_done(false),
                 t3_done(false),
                 t4_done(false),
-                cloud(new pcl::PointCloud<pcl::PointXYZRGB>)
+                cloud(new pcl::PointCloud<pcl::PointXYZRGB>),
+                feature_cloud(new pcl::PointCloud<pcl::PointXYZRGB>)
         {
 
         }

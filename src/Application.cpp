@@ -4,6 +4,8 @@
 
 #include "Application.h"
 
+#include "MapModel.h"
+
 #include <math.h>
 //#include <map>
 #include <pcl/common/distances.h>
@@ -257,16 +259,9 @@ void app::Application::start(int argc, char** argv) {
     std::ofstream positions_odometry_file("positions_odometry.txt", std::ofstream::trunc);
 
 
+    MapModel mapModel;
+
     while (is_running) {
-
-
-
-        // std::cout << grabbed_frame.x << " " << processed_frame.x << " " << matched_frame.x << std::endl;
-        // std::cout << grabbed_frame.y << " " << processed_frame.y << " " << matched_frame.y << std::endl;
-        // processed_frame.x++;
-        // std::cout << grabbed_frame.x << " " << processed_frame.x << " " << matched_frame.x << std::endl;
-
-
 
         bool visualize_frame = false;
         Frame temp_frame;
@@ -308,13 +303,23 @@ void app::Application::start(int argc, char** argv) {
             camera_pose_odometry = pcl::transformPoint(initial_camera_pose, temp_frame.transform_odometry);
 
 
-            // std::cout << temp_frame.transform_odometry.matrix() << std::endl;
+            mapModel.insertFrame(temp_frame);
+
+            // for (const auto & match : temp_frame.good_feature_matches) {
+            //     auto & point = temp_frame.feature_cloud->points[match.queryIdx];
+            //     point.r = 255;
+            //     point.g = 0;
+            //     point.b = 0;
+            // }
+            
+            Frame predicted_frame = mapModel.getPredictedFrame();
+            // std::cout << "NUmber of points in predicted frame: " << predicted_frame.cloud->points.size() << std::endl;
 
             pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.cloud, *preview_cloud, transform);
 
 
             // this computes and updates world model
-            if (options.is_slamming && frames_processed % 10 == 0) { 
+            if (options.is_slamming && frames_processed % 1 == 0) { 
 
                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
                 // Create the filtering object
@@ -322,7 +327,8 @@ void app::Application::start(int argc, char** argv) {
                 sor.setInputCloud (preview_cloud);
                 sor.setLeafSize (60, 60, 60);
                 sor.filter (*cloud_filtered);
-                *model += *cloud_filtered;
+            
+                *model = *predicted_frame.cloud;
  
 
                 // 
@@ -389,13 +395,17 @@ void app::Application::start(int argc, char** argv) {
                 viewer->addSphere(camera_pose_visual, 20, 255, 0, 0, sphere_name);
                 // end camera poses!
 
-                if (frames_processed % 10 == 0){
+                if (frames_processed % 1 == 0){
                       // visualize world model
-                     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
-                     // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
+                     // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
+                     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
+                     
                      if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
                          viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
+                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "model");
                      }
+
+                     
                 }
 
 

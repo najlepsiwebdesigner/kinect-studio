@@ -51,64 +51,32 @@ void computeDescriptors(Frame & temp_frame) {
 
 
 
-Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2, pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud) {
+Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
+    const int MAXIMAL_FEATURE_DISTANCE = 30;
 
-    // static long long iii = 0;
     computeDescriptors(frame1);
     computeDescriptors(frame2);
 
-    // cv::Mat img1 = frame1.rgbMat;
-    // cv::Mat img2 = frame2.rgbMat;
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (frame1.cloud);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (frame2.cloud);
 
-
-    const int MAXIMAL_FEATURE_DISTANCE = 30;
-    /// ### feature detection ± 13 ms
-    // Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
-    // Ptr<AKAZE> detector = AKAZE::create();
-    // Ptr<ORB> detector = ORB::create(1000);
-    //         Ptr<SIFT> detector = SIFT::create();
-    // Ptr<MSER> detector = MSER::create();
-            // Ptr<BRISK> detector = BRISK::create();
-            // Ptr<KAZE> detector = KAZE::create();
-    // Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
-
     std::vector<KeyPoint> & keypoints1 = frame1.keypoints;
     std::vector<KeyPoint> & keypoints2 = frame2.keypoints;
-    // detector->detect( img1, keypoints1);
-    // detector->detect( img2, keypoints2);
 
-    /// ### feature description
-    // Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
-    // Ptr<SURF> extractor = SURF::create();
     Mat & descriptors1 = frame1.descriptors;
     Mat & descriptors2 = frame2.descriptors;
-
-    // extractor->compute(img1, keypoints1, descriptors1);
-    // extractor->compute(img2, keypoints2, descriptors2);
 
     cv::BFMatcher matcher(cv::NORM_HAMMING);
     std::vector<cv::DMatch> matches;
     matcher.match(descriptors1, descriptors2, matches);
 
-    // std::cout << "number of matches: " << matches.size() << std::endl;
+    // std::cout << "desc1: " << descriptors1.rows << std::endl;
+    // std::cout << "desc2: " << descriptors2.rows << std::endl;
+    // std::cout << "matches: " << matches.size() << std::endl;
 
     std::vector<Vector3f> movement_vectors;
     Vector3f average_movement_vector;
     int number_of_matches = 0;
-
-    std::vector< DMatch > good_matches;
-
-    for( int i = 0; i < matches.size(); i++ ) {
-        // std::cout << "d: " << matches[i].distance << std::endl;
-
-        if( matches[i].distance < MAXIMAL_FEATURE_DISTANCE) {
-            good_matches.push_back( matches[i]);
-        }
-    }
-
-    // std::cout << "number of good matches: " << matches.size() << std::endl;
 
 
     // create feature point clouds
@@ -116,44 +84,36 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
 
 
-    // long double average_z_movement = 0;
-    // int z_movement_counter = 0;
+// create feature cloud for currently processed frame
+for (int i = 0; i < keypoints1.size(); i++) {
+    auto cvPoint = keypoints1[i].pt;
+    auto & cloudpoint = getCloudPoint(*cloud1, cvPoint.x, cvPoint.y);
+    frame1.feature_cloud->points.push_back(cloudpoint);
+}
 
-    // for (int i = 0; i < good_matches.size(); i++) {
-    //   auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;
-    //   auto cvPoint2 = keypoints2[matches[i].trainIdx].pt;
+    for (int i = 0; i < matches.size(); i++) {
+        bool is_good_match = false;
 
-    //   auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
-    //   auto & cloudpoint2 = getCloudPoint(*cloud2, cvPoint2.x,cvPoint2.y);
+        if( matches[i].distance < MAXIMAL_FEATURE_DISTANCE) {
+            auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;
+            auto cvPoint2 = keypoints2[matches[i].trainIdx].pt;
 
-    //   if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
-    //   if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
-    //   if (fabs(cloudpoint1.y - cloudpoint2.y) > 200) continue;
+            auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
+            auto & cloudpoint2 = getCloudPoint(*cloud2, cvPoint2.x,cvPoint2.y);
 
-    //   average_z_movement += fabs(cloudpoint1.z - cloudpoint2.z);
-    //   z_movement_counter++;
-    // }
+            if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
+            if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
+            
+            feature_cloud1->points.push_back(cloudpoint1);
+            feature_cloud2->points.push_back(cloudpoint2);
 
-    // average_z_movement = average_z_movement/z_movement_counter;
+            frame1.good_feature_matches.push_back(matches[i]);
+        }
 
-    for (int i = 0; i < good_matches.size(); i++) {
-        auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;
-        auto cvPoint2 = keypoints2[matches[i].trainIdx].pt;
 
-        auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
-        auto & cloudpoint2 = getCloudPoint(*cloud2, cvPoint2.x,cvPoint2.y);
-
-        if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
-        if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
-        if (fabs(cloudpoint1.y - cloudpoint2.y) > 150) continue;
-        // if (fabs(cloudpoint1.z - cloudpoint2.z) > (average_z_movement * 1.5) || fabs(cloudpoint1.z - cloudpoint2.z) < (average_z_movement * 0.5)) continue;
-
-        // viewer->addSphere(cloudpoint1, 20, 1.0, 0.0, 0.0, "sphere1_" + std::to_string(i));
-        // viewer->addSphere(cloudpoint2, 20, 0.0, 0.0, 1.0, "sphere2_" + std::to_string(i));
-        // viewer->addLine<pcl::PointXYZRGB> (cloudpoint1, cloudpoint2, 255,0,0, "line_" + std::to_string(i));
-
-        feature_cloud1->points.push_back(cloudpoint1);
-        feature_cloud2->points.push_back(cloudpoint2);
+        // current_feature_cloud->points.push_back()
+        // std::cout << "Feature cloud 1 points: " << feature_cloud1->points.size() << std::endl;
+        // std::cout << "Feature cloud 1 descriptors: " << feature_cloud1_descriptors.rows << std::endl;
 
     }
 
@@ -161,23 +121,9 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     boost::shared_ptr< pcl::registration::TransformationEstimation< pcl::PointXYZRGB, pcl::PointXYZRGB > > estPtr;
     estPtr.reset ( new pcl::registration::TransformationEstimationSVD < pcl::PointXYZRGB, pcl::PointXYZRGB > () );
     Eigen::Affine3f transformation_est;
-    // estPtr->estimateRigidTransformation ( *feature_cloud1,
-    //                                       *feature_cloud2,
-    //                                       transformation_est.matrix());
-
-
-
-    // std::cout << "number of features: " << feature_cloud1->points.size() << std::endl;
-
-// std::cout << "Estimating! " << iii << std::endl;
-// iii++; 
-
-
 
 
 // RANSAC START
-
-
     int max_iterations = 500;
     const int min_support = 5;
     const float inlier_error_threshold = 120.0f;
@@ -248,33 +194,6 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
                                               *random_features2,
                                               current_transformation.matrix());
 
-
-
-        // // Euler angles
-        // Eigen::Matrix<float, 3, 3> eigen_R;
-        // Eigen::Matrix<float, 3, 1> eigen_T;
-        // eigen_R = current_transformation.rotation();
-        // eigen_T = current_transformation.translation();
-        // Eigen::Vector3f rpy = eigen_R.eulerAngles(0,1,2);
-
-        // std::cout << "Euler angles:" << std::endl
-        //          << "roll: " << abs(rpy(0) - PI) << std::endl;
-        // std::cout << "pitch: " << abs(rpy(1) - PI) << std::endl;
-        // std::cout << "yaw: " << abs(rpy(2) - PI) << std::endl;
-
-        // // std::cout << << std::endl;
-
-        // // if (abs(rpy(0) - PI) < 3
-        // //     || abs(rpy(2) - PI)  < 3
-        // //     || abs(rpy(1) - PI) < 3
-        // //     ||  eigen_T(1) > 1000)
-        // // {
-        // //     std::cout << "clipping!" << std::endl;
-        // //     continue;
-        // // } 
-        
-
-
         //Get error
         std::vector<int> inliers;
         for(int i=0; i<pcount; i++) {
@@ -317,7 +236,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     random_features1->clear();
     random_features2->clear();
 
-    for(int i=0; i<best_inliers.size(); i++) {
+    for(int i=0; i < best_inliers.size(); i++) {
         int idx = best_inliers[i];
 
         pcl::PointXYZRGB & cpoint1 = feature_cloud1->points[idx];
@@ -413,8 +332,8 @@ void app::FrameMatcher::run() {
     long long frames_processed = 0;
     long long frame_processing_average_milliseconds = 0;
 
-    // remove this
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+    // // remove this
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr feature_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
 
 
     Eigen::Affine3f transform_visual_accumulated = Eigen::Affine3f::Identity();
@@ -445,7 +364,7 @@ void app::FrameMatcher::run() {
 
 // algorithm    
                 Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-                transform = estimateVisualTransformation(temp_frame, previous_frame, feature_cloud); 
+                transform = estimateVisualTransformation(temp_frame, previous_frame); 
                 transform_visual_accumulated = transform_visual_accumulated * transform; 
                 temp_frame.transform_visual = transform_visual_accumulated;
 
