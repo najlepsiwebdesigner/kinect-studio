@@ -35,9 +35,9 @@ public:
 		// std::cout << frame.model_indices.size() << std::endl;
 		// std::cout << frame.feature_cloud->points.size() << std::endl;
 
-		// pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_feature_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
-        // pcl::transformPointCloud<pcl::PointXYZRGB>(*frame.feature_cloud, *transformed_feature_cloud, frame.transform_visual);
-        // *frame.feature_cloud = *transformed_feature_cloud;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_feature_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        pcl::transformPointCloud<pcl::PointXYZRGB>(*frame.feature_cloud, *transformed_feature_cloud, frame.transform_visual);
+        *frame.feature_cloud = *transformed_feature_cloud;
 
         // std::cout << "feature points: " << feature_cloud->points.size() << std::endl;
         // std::cout << "matches: " << frame.good_feature_matches.size() << std::endl;
@@ -46,7 +46,7 @@ public:
 		for (int i = 0; i < frame.feature_cloud->points.size();i++) {
 			// fuse this point
 			int current_model_index = frame.model_indices[i];
-			if (current_model_index != -1 && false) {
+			if (current_model_index != -1) {
 				// raise counter on this point hit counter
 				indices_hit_count[current_model_index]++;
 
@@ -61,21 +61,21 @@ public:
 				// feature_cloud->points[current_model_index].y = frame.feature_cloud->points[i].y;
 				// feature_cloud->points[current_model_index].z = frame.feature_cloud->points[i].z;
 
-// // running average
-// feature_cloud->points[current_model_index].x = 
-// 	(feature_cloud->points[current_model_index].x * (indices_hit_count[current_model_index] -1) 
-// 	+ frame.feature_cloud->points[i].x) 
-// 	/ indices_hit_count[current_model_index];
+// running average
+feature_cloud->points[current_model_index].x = 
+	(feature_cloud->points[current_model_index].x * (indices_hit_count[current_model_index] -1) 
+	+ frame.feature_cloud->points[i].x) 
+	/ indices_hit_count[current_model_index];
 
-// feature_cloud->points[current_model_index].y = 
-// 	(feature_cloud->points[current_model_index].y * (indices_hit_count[current_model_index] -1) 
-// 	+ frame.feature_cloud->points[i].y) 
-// 	/ indices_hit_count[current_model_index];
+feature_cloud->points[current_model_index].y = 
+	(feature_cloud->points[current_model_index].y * (indices_hit_count[current_model_index] -1) 
+	+ frame.feature_cloud->points[i].y) 
+	/ indices_hit_count[current_model_index];
 	
-// feature_cloud->points[current_model_index].z = 
-// 	(feature_cloud->points[current_model_index].z * (indices_hit_count[current_model_index] -1) 
-// 	+ frame.feature_cloud->points[i].z) 
-// 	/ indices_hit_count[current_model_index];
+feature_cloud->points[current_model_index].z = 
+	(feature_cloud->points[current_model_index].z * (indices_hit_count[current_model_index] -1) 
+	+ frame.feature_cloud->points[i].z) 
+	/ indices_hit_count[current_model_index];
 
 
 				descriptors.row(current_model_index) = frame.descriptors.row(i);
@@ -112,9 +112,9 @@ public:
 
 		// std::cout << feature_point_indices.size() << std::endl;
 		// select last 30 poses, if available
-		int used_previous_poses_count = 1;
+		int used_previous_poses_count = 10;
 		int used_frames_count = (camera_poses.size() > used_previous_poses_count ? used_previous_poses_count : camera_poses.size());
-		for (int i = camera_poses.size() - 1; i > camera_poses.size() - used_frames_count && i > 0; i--) {
+		for (int i = camera_poses.size() - 1; i > camera_poses.size() - used_frames_count && i > 0; i=i-1) {
 			feature_point_indices.insert(
 				feature_point_indices.end(),
 				camera_poses_to_indices[i].begin(),
@@ -133,7 +133,7 @@ public:
 		// 	if (indices_hit_count[i] > 0) {
 		// 		good_indices_counter++;
 		// 	}
-		// }		
+		// // }		
 		// std::cout << "multi hit indices count: " << good_indices_counter << std::endl;
 		// bool only_multi_features = good_indices_counter > 0;
 
@@ -149,6 +149,13 @@ public:
 			predicted_frame.keypoints.push_back(keypoints[feature_point_indices[i]]);
 			predicted_frame.model_indices.push_back(feature_point_indices[i]);
 		}
+
+
+		// predicted frame is in global coordinates, we need to transform it to last observed camera pose via inverse transform of this camera pose
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
+        pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *transformed_cloud, camera_poses[camera_poses.size() - 1].inverse());
+        *predicted_frame.cloud = *transformed_cloud;
+
 
 		predicted_frame.is_predicted = true;
 		return predicted_frame;

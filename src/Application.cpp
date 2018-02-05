@@ -64,6 +64,7 @@ using namespace app;
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr preview_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr model (new pcl::PointCloud<pcl::PointXYZRGB> ());
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr predicted_cloud (new pcl::PointCloud<pcl::PointXYZRGB> ());
 bool app::Application::is_running = true;
 int saving_counter = 0;
 cv::Mat current_rgb_mat;
@@ -258,8 +259,8 @@ void app::Application::start(int argc, char** argv) {
 
     std::vector<std::string> feature_sphere_names;
 
-    std::ofstream positions_visual_file("positions_visual.txt", std::ofstream::trunc);
-    std::ofstream positions_odometry_file("positions_odometry.txt", std::ofstream::trunc);
+    // std::ofstream positions_visual_file("positions_visual.txt", std::ofstream::trunc);
+    // std::ofstream positions_odometry_file("positions_odometry.txt", std::ofstream::trunc);
 
     while (is_running) {
 
@@ -293,10 +294,16 @@ void app::Application::start(int argc, char** argv) {
             camera_pose_visual = pcl::transformPoint(initial_camera_pose, temp_frame.transform_visual);
             camera_pose_odometry = pcl::transformPoint(initial_camera_pose, temp_frame.transform_odometry);
 
-            pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.cloud, *preview_cloud, transform);
+
+
+
 
             // this computes and updates world model
             if (options.is_slamming && frames_processed % 1 == 0) { 
+
+                // transform preview clouds
+                pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.cloud, *preview_cloud, transform);
+                
 
                 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
                 // // Create the filtering object
@@ -307,10 +314,14 @@ void app::Application::start(int argc, char** argv) {
                 {
                     std::lock_guard<std::mutex> mutex_guard(map_model_mutex);
                     if (map_model.is_ready) {
-                        // Frame predicted_frame = map_model.getPredictedFrame();
-                        // pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *cloud_filtered, transform);
-                        // if (predicted_frame.cloud->points.size() > 0)
-                        *model = *cloud_filtered;
+
+                        Frame predicted_frame = map_model.getPredictedFrame();
+                        pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *cloud_filtered, transform);
+                        if (predicted_frame.cloud->points.size() > 0)
+                            pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *predicted_cloud, transform);
+                        
+
+                        *model = *map_model.feature_cloud;
                     }
                 }
                 
@@ -381,19 +392,25 @@ void app::Application::start(int argc, char** argv) {
                 // end camera poses!
 
                 if (frames_processed % 1 == 0){
-                      // visualize world model
-                     // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
-                     pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
-                     
-                     if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
+
+                    // visualize world model
+                    // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
+                    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
+
+                    if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
                          viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
-                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, "model");
+                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "model");
                      }
 
+                     // visualize predictd frame
+                     // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> preview_cloud_rgb(predicted_cloud);
+                     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> predicted_cloud_rgb(predicted_cloud, 255 , 0 , 0); 
+                     if (!viewer->updatePointCloud<pcl::PointXYZRGB>(predicted_cloud, predicted_cloud_rgb, "predicted_cloud")) {
+                         viewer->addPointCloud<pcl::PointXYZRGB>(predicted_cloud, predicted_cloud_rgb, "predicted_cloud");
+                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "predicted_cloud");
+                     }
                      
                 }
-
-
 
                 // preview cloud visualization
                 pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbc(preview_cloud);

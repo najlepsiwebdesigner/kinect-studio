@@ -52,7 +52,7 @@ void computeDescriptors(Frame & temp_frame) {
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
-    const int MAXIMAL_FEATURE_DISTANCE = 20;
+    const int MAXIMAL_FEATURE_DISTANCE = 50;
 
     computeDescriptors(frame1);
 
@@ -378,6 +378,7 @@ void app::FrameMatcher::run() {
                 {
                     std::lock_guard<std::mutex> mutex_guard(map_model_mutex);
                     
+                    // switching between frame-to-frame or frame-to-predicted frame (model MapModel)
                     Frame tmp_frame;
                     if (map_model.is_ready) {
                         tmp_frame = map_model.getPredictedFrame();
