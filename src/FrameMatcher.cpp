@@ -54,7 +54,7 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
-    const int MAXIMAL_FEATURE_DISTANCE = 50;
+    const int MAXIMAL_FEATURE_DISTANCE = 100;
 
     // computeDescriptors(frame1);
 
@@ -113,6 +113,9 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
     // frame1.model_indices.clear();
 
+
+    std::cout << "size of feature cloud in new frame: " << frame1.feature_cloud->points.size() << std::endl;
+
     for (int i = 0; i < matches.size(); i++) {
         bool is_good_match = false;
 
@@ -140,11 +143,21 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
 
         // current_feature_cloud->points.push_back()
-        // std::cout << "Feature cloud 1 points: " << feature_cloud1->points.size() << std::endl;
+        
         // std::cout << "Feature cloud 1 descriptors: " << feature_cloud1_descriptors.rows << std::endl;
 
     }
 
+std::cout << "size of good matches : " << frame1.good_feature_matches.size() << std::endl;
+std::cout << "size of feature cloud after good feature filtering in new frame: " << frame1.feature_cloud->points.size() << std::endl;
+
+    static int problem_image_counter = 0;
+
+    if (feature_cloud1->points.size() < 10) {
+        cv::imwrite("/Volumes/rdisk/problem.png", frame1.depthMat);
+        problem_image_counter++;
+        return Eigen::Affine3f::Identity();
+    }
 
 Bench::count("Good features", feature_cloud1->points.size());
 
@@ -156,7 +169,7 @@ Bench::count("Good features", feature_cloud1->points.size());
 Bench::start("ransac");
 
 // RANSAC START
-    int max_iterations = 2000;
+    int max_iterations = 5000;
     const int min_support = 5;
     const float inlier_error_threshold = 120.0f;
     const int pcount = feature_cloud1->points.size();
@@ -193,16 +206,16 @@ Bench::start("ransac");
             pcl::PointXYZRGB & cpoint1 = feature_cloud1->points[idx];
             pcl::PointXYZRGB & cpoint2 = feature_cloud2->points[idx];
 
-            // skip first iteration
-            if (i>0) {
-                float distance1 = pcl::geometry::distance(cpoint1, prevcpoint1);
-                float distance2 = pcl::geometry::distance(cpoint2, prevcpoint2);
+            // // skip first iteration
+            // if (i>0) {
+            //     float distance1 = pcl::geometry::distance(cpoint1, prevcpoint1);
+            //     float distance2 = pcl::geometry::distance(cpoint2, prevcpoint2);
 
-                if (abs(distance1 - distance2) > 100) {
-                    skipThisIteration = true;
-                    break;
-                }
-            }
+            //     if (abs(distance1 - distance2) > 10000) {
+            //         skipThisIteration = true;
+            //         break;
+            //     }
+            // }
 
 
 
@@ -257,12 +270,12 @@ Bench::start("ransac");
             best_inliers = inliers;
         }
     }
-    // std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << " Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
+    std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << " Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
 
 
-    // if (best_inliers.size() < 8) {
-    //     return Eigen::Affine3f::Identity();
-    // }
+    if (best_inliers.size() < 8) {
+        return Eigen::Affine3f::Identity();
+    }
 
 
 
@@ -418,6 +431,13 @@ void app::FrameMatcher::run() {
                     Bench::start("visual odometry");
                     transform = estimateVisualTransformation(temp_frame, tmp_frame);
                     Bench::stop("visual odometry");
+
+                    if (transform.matrix().isIdentity()) {
+                        std::cout << "no transform computed" << std::endl;
+                        continue;
+                    }
+
+
                     transform_visual_accumulated = transform_visual_accumulated * transform; 
                     temp_frame.transform_visual = transform_visual_accumulated;
 
@@ -426,6 +446,7 @@ void app::FrameMatcher::run() {
                     Bench::start("new frame fusion");
                     map_model.insertFrame(temp_frame);
                     Bench::stop("new frame fusion");
+
                 }
 
                 Bench::stop("matching");

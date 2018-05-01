@@ -40,7 +40,7 @@ namespace app {
         /// ### feature detection ± 13 ms
         // Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
        Ptr<AKAZE> detector = AKAZE::create();
-        // Ptr<ORB> detector = ORB::create(1000);
+        // Ptr<ORB> detector = ORB::create(3000);
         // Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
         // Ptr<BRISK> detector = BRISK::create();
@@ -54,10 +54,10 @@ namespace app {
         // Bench::start("feature detection");
 
 
-        // /// ### feature description
+        /// ### feature description
         // Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
         // // Ptr<SURF> extractor = SURF::create();
-        // // Ptr<AKAZE> extractor = AKAZE::create();
+        // Ptr<AKAZE> extractor = AKAZE::create();
         // Bench::start("feature descriptors");
         // extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
         // Bench::stop("feature descriptors");

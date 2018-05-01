@@ -140,6 +140,8 @@ namespace app {
                 frame.rgbMat = video.clone();
                 frame.depthMat = depth.clone();
 
+                std::cout << frame.depthMat.total() << " " << cv::countNonZero(frame.depthMat) << std::endl;
+
                 frame.order = i;
                 frame.generated = true;
 
@@ -164,7 +166,7 @@ namespace app {
                 i++;
 
                 // simulate som frame rate
-                std::this_thread::sleep_for(std::chrono::milliseconds(60));
+                std::this_thread::sleep_for(std::chrono::milliseconds(30));
             }
 
             app::Application::stop();
