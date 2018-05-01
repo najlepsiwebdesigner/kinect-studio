@@ -1,5 +1,5 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef GLOBALS_H
+#define GLOBALS_H
 
 #include <cv.h>
 #include <cxcore.h>
@@ -16,6 +16,7 @@
 #include "opencv2/features2d.hpp"
 #include "opencv2/xfeatures2d.hpp"
 
+#include "Bench.h"
 
 #include "Frame.h"
 
@@ -43,4 +44,4 @@ struct Options {
 
 
 
-#endif  // UTILS_H
+#endif  // GLOBALS_H

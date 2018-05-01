@@ -101,27 +101,27 @@ public:
 
 	Frame getPredictedFrame() {
 
-		// statistics about multi features
-		int multihit = 0;
-		int more_than_10 = 0;
+		// // statistics about multi features
+		// int multihit = 0;
+		// int more_than_10 = 0;
 
-		for (auto & hit_count : indices_hit_count) {
-			if (hit_count != 0) {
-				multihit++;
+		// for (auto & hit_count : indices_hit_count) {
+		// 	if (hit_count != 0) {
+		// 		multihit++;
 
-				if (hit_count > 10) {
-					more_than_10++;
-				}
-			}
-		}
-		std::cout 
-			<< "Percentage of multihit: " 
-			<< (multihit*100) / indices_hit_count.size() 
-			<< "% of indices total: " 
-			<< indices_hit_count.size() 
-			<< " more than 10: " 
-			<< more_than_10
-			<< std::endl;
+		// 		if (hit_count > 10) {
+		// 			more_than_10++;
+		// 		}
+		// 	}
+		// }
+		// std::cout 
+		// 	<< "Percentage of multihit: " 
+		// 	<< (multihit*100) / indices_hit_count.size() 
+		// 	<< "% of indices total: " 
+		// 	<< indices_hit_count.size() 
+		// 	<< " more than 10: " 
+		// 	<< more_than_10
+		// 	<< std::endl;
 
 
 
@@ -136,9 +136,9 @@ public:
 
 		// std::cout << feature_point_indices.size() << std::endl;
 		// select last 30 poses, if available
-		int used_previous_poses_count = 10;
+		int used_previous_poses_count = 30;
 		int used_frames_count = (camera_poses.size() > used_previous_poses_count ? used_previous_poses_count : camera_poses.size());
-		for (int i = camera_poses.size() - 1; i > camera_poses.size() - used_frames_count && i > 0; i=i-1) {
+		for (int i = camera_poses.size() - 1; i > camera_poses.size() - used_frames_count && i > 0; i=i-2) {
 			feature_point_indices.insert(
 				feature_point_indices.end(),
 				camera_poses_to_indices[i].begin(),
@@ -152,22 +152,22 @@ public:
 		// std::cout << "feature_point_indices_size: " << feature_point_indices.size() << std::endl;
 		// std::cout << "camera_poses_to_indices_size: " << camera_poses_to_indices.size() << std::endl;
 
-		// int good_indices_counter = 0;
-		// for (int i = 0; i < feature_point_indices.size(); i++) {
-		// 	if (indices_hit_count[i] > 0) {
-		// 		good_indices_counter++;
-		// 	}
-		// // }		
-		// std::cout << "multi hit indices count: " << good_indices_counter << std::endl;
-		// bool only_multi_features = good_indices_counter > 0;
+		int good_indices_counter = 0;
+		for (int i = 0; i < feature_point_indices.size(); i++) {
+			if (indices_hit_count[i] > 0) {
+				good_indices_counter++;
+			}
+		}		
+		std::cout << "multi hit indices count: " << good_indices_counter << std::endl;
+		bool only_multi_features = good_indices_counter > 0;
 
-std::cout << "feature point in predicted frame count: " <<  feature_point_indices.size() << std::endl;
-sort( feature_point_indices.begin(), feature_point_indices.end() );
-feature_point_indices.erase( unique( feature_point_indices.begin(), feature_point_indices.end() ), feature_point_indices.end() );
-std::cout << "feature point in predicted frame  after reduction count: " <<  feature_point_indices.size() << std::endl;
+// std::cout << "feature point in predicted frame count: " <<  feature_point_indices.size() << std::endl;
+// sort( feature_point_indices.begin(), feature_point_indices.end() );
+// feature_point_indices.erase( unique( feature_point_indices.begin(), feature_point_indices.end() ), feature_point_indices.end() );
+// std::cout << "feature point in predicted frame  after reduction count: " <<  feature_point_indices.size() << std::endl;
 
 		for (int i = 0; i < feature_point_indices.size(); i++) {
-			// if (only_multi_features && indices_hit_count[feature_point_indices[i]] < 1) continue; 
+			if (only_multi_features && indices_hit_count[feature_point_indices[i]] < 1 && i % 2 == 0) continue; 
 		
 			predicted_frame.cloud->points.push_back(feature_cloud->points[feature_point_indices[i]]);
 			predicted_frame.descriptors.push_back(descriptors.row(feature_point_indices[i]));

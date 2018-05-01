@@ -35,30 +35,32 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 
 
 
-void computeDescriptors(Frame & temp_frame) {
-    using namespace cv;
-    using namespace cv::xfeatures2d;
+// void computeDescriptors(Frame & temp_frame) {
+//     using namespace cv;
+//     using namespace cv::xfeatures2d;
 
-    auto & keypoints = temp_frame.keypoints;
+//     auto & keypoints = temp_frame.keypoints;
 
-    /// ### feature description
-    Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
-//        Ptr<SURF> extractor = SURF::create();
+//     /// ### feature description
+//     Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
+//     // Ptr<SURF> extractor = SURF::create();
+//     // Ptr<AKAZE> extractor = AKAZE::create();
+//     Bench::start("descriptors");
+//     extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
+//     Bench::stop("descriptors");
 
-    extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
-
-}
+// }
 
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
     const int MAXIMAL_FEATURE_DISTANCE = 50;
 
-    computeDescriptors(frame1);
+    // computeDescriptors(frame1);
 
-    if (!frame2.is_predicted) {
-        computeDescriptors(frame2);
-    }
+    // if (!frame2.is_predicted) {
+        // computeDescriptors(frame2);
+    // }
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (frame1.cloud);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (frame2.cloud);
@@ -69,9 +71,23 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     Mat & descriptors1 = frame1.descriptors;
     Mat & descriptors2 = frame2.descriptors;
 
+    // ORB, BRIEF, BRISF
     cv::BFMatcher matcher(cv::NORM_HAMMING);
+    // ORB special
+    // cv::BFMatcher matcher(cv::NORM_HAMMING2);
+    // SURF, SIFT
+    // cv::BFMatcher matcher(cv::NORM_L1);
+    // FLANN
+    // cv::FlannBasedMatcher matcher;
+    // cv::FlannBasedMatcher matcher(new cv::flann::LshIndexParams(3, 12, 1));
+    // cv::FlannBasedMatcher matcher(new cv::flann::LshIndexParams(20, 10, 2));
+
+
     std::vector<cv::DMatch> matches;
+
+    Bench::start("pure matching");
     matcher.match(descriptors1, descriptors2, matches);
+    Bench::stop("pure matching");
 
     // std::cout << "desc1: " << descriptors1.rows << std::endl;
     // std::cout << "desc2: " << descriptors2.rows << std::endl;
@@ -103,13 +119,12 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
         if( matches[i].distance < MAXIMAL_FEATURE_DISTANCE) {
             auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;
             auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
+            if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
 
             auto cvPoint2 = keypoints2[matches[i].trainIdx].pt;
             auto & cloudpoint2 = (frame2.is_predicted ? cloud2->points[matches[i].trainIdx] : getCloudPoint(*cloud2, cvPoint2.x,cvPoint2.y));
-
-            if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
             if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
-            if (fabs(cloudpoint1.y - cloudpoint2.y) > 150) continue; 
+            // if (fabs(cloudpoint1.y - cloudpoint2.y) > 150) continue; 
 
             if (frame2.is_predicted) {
                 auto model_index_predicted = frame2.model_indices[matches[i].trainIdx];
@@ -131,13 +146,17 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     }
 
 
+Bench::count("Good features", feature_cloud1->points.size());
+
     boost::shared_ptr< pcl::registration::TransformationEstimation< pcl::PointXYZRGB, pcl::PointXYZRGB > > estPtr;
     estPtr.reset ( new pcl::registration::TransformationEstimationSVD < pcl::PointXYZRGB, pcl::PointXYZRGB > () );
     Eigen::Affine3f transformation_est;
 
 
+Bench::start("ransac");
+
 // RANSAC START
-    int max_iterations = 1000;
+    int max_iterations = 2000;
     const int min_support = 5;
     const float inlier_error_threshold = 120.0f;
     const int pcount = feature_cloud1->points.size();
@@ -179,7 +198,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
                 float distance1 = pcl::geometry::distance(cpoint1, prevcpoint1);
                 float distance2 = pcl::geometry::distance(cpoint2, prevcpoint2);
 
-                if (abs(distance1 - distance2) > 1000) {
+                if (abs(distance1 - distance2) > 100) {
                     skipThisIteration = true;
                     break;
                 }
@@ -246,6 +265,8 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     // }
 
 
+
+
     // estimate final transformation with inliers
     random_features1->clear();
     random_features2->clear();
@@ -265,6 +286,9 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     estPtr->estimateRigidTransformation ( *random_features1,
                                           *random_features2,
                                           transformation_est.matrix());
+
+    Bench::stop("ransac");
+    Bench::start("icp");
 
     // transform features1 with transformation from ransac and compute ICP
     pcl::transformPointCloud( *random_features1, *random_features1, transformation_est );
@@ -287,7 +311,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
         transformation_est *= transformation_icp;
     }
 
-
+    Bench::stop("icp");
 
 
 
@@ -373,7 +397,8 @@ void app::FrameMatcher::run() {
             
 
             if (frames_processed != 0) {
-                auto start = std::chrono::high_resolution_clock::now();
+                // auto start = std::chrono::high_resolution_clock::now();
+                Bench::start("matching");
 
                 {
                     std::lock_guard<std::mutex> mutex_guard(map_model_mutex);
@@ -381,26 +406,33 @@ void app::FrameMatcher::run() {
                     // switching between frame-to-frame or frame-to-predicted frame (model MapModel)
                     Frame tmp_frame;
                     if (map_model.is_ready) {
+                        Bench::start("frame prediction");
                         tmp_frame = map_model.getPredictedFrame();
+                        Bench::stop("frame prediction");
                     } else {
                         tmp_frame = previous_frame;
                     }
                 
                     // algorithm    
                     Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+                    Bench::start("visual odometry");
                     transform = estimateVisualTransformation(temp_frame, tmp_frame);
+                    Bench::stop("visual odometry");
                     transform_visual_accumulated = transform_visual_accumulated * transform; 
                     temp_frame.transform_visual = transform_visual_accumulated;
 
                     // pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.feature_cloud, *temp_frame.cloud, transform);
 
+                    Bench::start("new frame fusion");
                     map_model.insertFrame(temp_frame);
+                    Bench::stop("new frame fusion");
                 }
 
-                 // time benchmark stop
-                auto end = std::chrono::high_resolution_clock::now();
-                auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
+                Bench::stop("matching");
+                //  // time benchmark stop
+                // auto end = std::chrono::high_resolution_clock::now();
+                // auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                // frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
                 
             }
 
@@ -428,6 +460,6 @@ void app::FrameMatcher::run() {
 
     }
 
-    std::cout << "Matching thread frame count: " << frames_processed << " avg time of mapping: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
+    // std::cout << "Matching thread frame count: " << frames_processed << " avg time of mapping: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
     std::cout << "Frame Matcher exitting..." << std::endl;
 }

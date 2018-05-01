@@ -38,19 +38,36 @@ namespace app {
         using namespace cv::xfeatures2d;
 
         /// ### feature detection ± 13 ms
-//         Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
+        // Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
        Ptr<AKAZE> detector = AKAZE::create();
-        // Ptr<ORB> detector = ORB::create(2500);
-//         Ptr<SIFT> detector = SIFT::create();
+        // Ptr<ORB> detector = ORB::create(1000);
+        // Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
         // Ptr<BRISK> detector = BRISK::create();
 //         Ptr<KAZE> detector = KAZE::create();
          // Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
 
-        std::vector<KeyPoint> keypoints;
-        detector->detect( temp_frame.claheMat, keypoints);
+        // std::vector<KeyPoint> keypoints;
+        // Bench::start("feature detection");
+        // detector->detect( temp_frame.claheMat, keypoints);
+        // temp_frame.keypoints = keypoints;
+        // Bench::start("feature detection");
 
 
+        // /// ### feature description
+        // Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
+        // // Ptr<SURF> extractor = SURF::create();
+        // // Ptr<AKAZE> extractor = AKAZE::create();
+        // Bench::start("feature descriptors");
+        // extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
+        // Bench::stop("feature descriptors");
+
+        cv::Mat tmp;
+        detector->detectAndCompute(temp_frame.claheMat, tmp, temp_frame.keypoints,temp_frame.descriptors);
+
+
+
+        // std::cout << detector->descriptorType() << "   " <<  detector->defaultNorm() << std::endl;
         // // keep only 3D keypoints
         // std::vector<cv::KeyPoint> filtered_frame_keypoints;
 
@@ -60,27 +77,28 @@ namespace app {
         //     }
         // }
 
-        temp_frame.keypoints = keypoints;
+        
     }
 
-    void FrameProcessor::computeDescriptors(Frame & temp_frame) {
-        using namespace cv;
-        using namespace cv::xfeatures2d;
+//     void FrameProcessor::computeDescriptors(Frame & temp_frame) {
+//         using namespace cv;
+//         using namespace cv::xfeatures2d;
 
-        if (temp_frame.keypoints.size() < 1) {
-            computeKeypoints(temp_frame);
-        }
+//         if (temp_frame.keypoints.size() < 1) {
+//             computeKeypoints(temp_frame);
+//         }
 
-        auto & keypoints = temp_frame.keypoints;
+//         auto & keypoints = temp_frame.keypoints;
 
-        /// ### feature description
-        Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
-//        Ptr<SURF> extractor = SURF::create();
-        Mat descriptors;
+//         /// ### feature description
+//         Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
+//         // Ptr<AKAZE> extractor = AKAZE::create();
+// //        Ptr<SURF> extractor = SURF::create();
+//         Mat descriptors;
 
-        extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
+//         extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
 
-    }
+//     }
 
 
 
@@ -341,19 +359,22 @@ namespace app {
 
             // processing pipeline start
             if (process_frame){
-                auto start = std::chrono::high_resolution_clock::now();
+                // auto start = std::chrono::high_resolution_clock::now();
+                Bench::start("processing");
 
 // algorithm!
                 computePointCloud(temp_frame);
+                Bench::start("clahe");
                 computeClahe(temp_frame);
+                Bench::stop("clahe");
                 computeKeypoints(temp_frame);
                 // computeDescriptors(temp_frame);
 
-
-                auto end = std::chrono::high_resolution_clock::now();
-                auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
-                frames_processed++;
+                Bench::stop("processing");
+                // auto end = std::chrono::high_resolution_clock::now();
+                // auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                // frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
+                // frames_processed++;
 
 
 
@@ -377,7 +398,9 @@ namespace app {
         }
 
         /// exit thread
-        std::cout << "Processing thread frame count: " << frames_processed << " avg time of mapping: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
+        // std::cout << "Processing thread frame count: " << frames_processed << " avg time of mapping: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
+        // Bench::printLabel("processing");
+
         std::cout << "Processing thread exitting.." << std::endl;
     }
 }

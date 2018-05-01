@@ -50,8 +50,6 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include "Logger.h"
-
 using namespace std;
 using namespace std::chrono;
 using namespace pcl::visualization;
@@ -284,7 +282,8 @@ void app::Application::start(int argc, char** argv) {
         if (visualize_frame) {
 
             // Logger::log<std::string>("");
-            auto start = std::chrono::high_resolution_clock::now();
+            // auto start = std::chrono::high_resolution_clock::now();
+            Bench::start("visualization");
  
             transform = temp_frame.transform_visual;
             // transform = temp_frame.transform_odometry;
@@ -430,11 +429,14 @@ void app::Application::start(int argc, char** argv) {
                 // // cv::imshow("BA", processed_frame.baMat);
             }
 
-            // time benchmark stop
-            auto end = std::chrono::high_resolution_clock::now();
-            auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-            frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
+            // // time benchmark stop
+            // auto end = std::chrono::high_resolution_clock::now();
+            // auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+            // frame_processing_average_milliseconds = (frame_processing_average_milliseconds * frames_processed + millis) / (frames_processed + 1);
             
+            Bench::stop("visualization");
+
+
             frames_processed++;
 
             viewer->spinOnce(1);
@@ -468,8 +470,10 @@ void app::Application::start(int argc, char** argv) {
 
 
     // exit main thread
-    std::cout << "Main thread frame count: " << frames_processed << " avg time of visualization: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
+    // std::cout << "Main thread frame count: " << frames_processed << " avg time of visualization: " << frame_processing_average_milliseconds << " [ms]"<< std::endl;
     std::cout << "Main thread exitting.." << std::endl;
+
+    Bench::printSummary();
 
 
 }
