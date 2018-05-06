@@ -79,7 +79,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     // cv::BFMatcher matcher(cv::NORM_L1);
     // FLANN
     // cv::FlannBasedMatcher matcher;
-    // cv::FlannBasedMatcher matcher(new cv::flann::LshIndexParams(3, 12, 1));
+    // cv::FlannBasedMatcher matcher(new cv::flann::LshIndexParams(3, 12, 1)); // akaze
     // cv::FlannBasedMatcher matcher(new cv::flann::LshIndexParams(20, 10, 2));
 
 
@@ -114,7 +114,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     // frame1.model_indices.clear();
 
 
-    std::cout << "size of feature cloud in new frame: " << frame1.feature_cloud->points.size() << std::endl;
+    // std::cout << "size of feature cloud in new frame: " << frame1.feature_cloud->points.size() << std::endl;
 
     for (int i = 0; i < matches.size(); i++) {
         bool is_good_match = false;
@@ -123,10 +123,16 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
             auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;
             auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
             if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
+            if (cloudpoint1.x == std::numeric_limits<float>::quiet_NaN() ||
+                cloudpoint1.y == std::numeric_limits<float>::quiet_NaN() ||
+                cloudpoint1.z == std::numeric_limits<float>::quiet_NaN()) continue;
 
             auto cvPoint2 = keypoints2[matches[i].trainIdx].pt;
             auto & cloudpoint2 = (frame2.is_predicted ? cloud2->points[matches[i].trainIdx] : getCloudPoint(*cloud2, cvPoint2.x,cvPoint2.y));
             if (cloudpoint2.x == 0 && cloudpoint2.y == 0 && cloudpoint2.z == 0) continue;
+            if (cloudpoint2.x == std::numeric_limits<float>::quiet_NaN() ||
+                cloudpoint2.y == std::numeric_limits<float>::quiet_NaN() ||
+                cloudpoint2.z == std::numeric_limits<float>::quiet_NaN()) continue;
             // if (fabs(cloudpoint1.y - cloudpoint2.y) > 150) continue; 
 
             if (frame2.is_predicted) {
@@ -138,9 +144,8 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
             feature_cloud1->points.push_back(cloudpoint1);
             feature_cloud2->points.push_back(cloudpoint2);
 
-            frame1.good_feature_matches.push_back(matches[i]);
+            // frame1.good_feature_matches.push_back(matches[i]);
         }
-
 
         // current_feature_cloud->points.push_back()
         
@@ -148,8 +153,8 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
     }
 
-std::cout << "size of good matches : " << frame1.good_feature_matches.size() << std::endl;
-std::cout << "size of feature cloud after good feature filtering in new frame: " << frame1.feature_cloud->points.size() << std::endl;
+// std::cout << "size of good matches : " << frame1.good_feature_matches.size() << std::endl;
+// std::cout << "size of feature cloud after good feature filtering in new frame: " << frame1.feature_cloud->points.size() << std::endl;
 
     static int problem_image_counter = 0;
 
@@ -169,15 +174,15 @@ Bench::count("Good features", feature_cloud1->points.size());
 Bench::start("ransac");
 
 // RANSAC START
-    int max_iterations = 5000;
+    int max_iterations = 10000;
     const int min_support = 5;
-    const float inlier_error_threshold = 120.0f;
+    const float inlier_error_threshold = 60.0f;
     const int pcount = feature_cloud1->points.size();
 
-    if (pcount < 6) {
-        std::cout << "Not enough features!" << std::endl;
-        return Eigen::Affine3f::Identity();
-    }
+    // if (pcount < 6) {
+    //     std::cout << "Not enough features!" << std::endl;
+    //     return Eigen::Affine3f::Identity();
+    // }
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr random_features1 (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr random_features2 (new pcl::PointCloud<pcl::PointXYZRGB>);
@@ -195,9 +200,9 @@ Bench::start("ransac");
         random_features2->clear();
 
 
-        pcl::PointXYZRGB prevcpoint1;
-        pcl::PointXYZRGB prevcpoint2;
-        bool skipThisIteration = false;
+        // pcl::PointXYZRGB prevcpoint1;
+        // pcl::PointXYZRGB prevcpoint2;
+        // bool skipThisIteration = false;
 
         //Select random points
         for(int i=0; i < min_support; i++) {
@@ -211,7 +216,8 @@ Bench::start("ransac");
             //     float distance1 = pcl::geometry::distance(cpoint1, prevcpoint1);
             //     float distance2 = pcl::geometry::distance(cpoint2, prevcpoint2);
 
-            //     if (abs(distance1 - distance2) > 10000) {
+            //     if (abs(distance1 - distance2) > 1000) {
+
             //         skipThisIteration = true;
             //         break;
             //     }
@@ -226,11 +232,12 @@ Bench::start("ransac");
             // prevcpoint2 = cpoint1;
         }
 
-        if (skipThisIteration) {
-            // std::cout << "distance too far!" << std::endl;
-            // max_iterations++;
-            continue;
-        }
+        // if (skipThisIteration) {
+        //     // k--;
+        //     std::cout << "ransac check: distance too far!" << std::endl;
+        //     // max_iterations++;
+        //     continue;
+        // }
 
 
 
@@ -260,7 +267,7 @@ Bench::start("ransac");
             }
         }
 
-        if (inliers.size() < 4) {
+        if (inliers.size() < 10) {
             // max_iterations++;
             // std::cout << "not enough inliers!!" << std::endl;
             continue;
@@ -270,10 +277,12 @@ Bench::start("ransac");
             best_inliers = inliers;
         }
     }
-    std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << " Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
+    // float ratio 
+    // std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << 
+    std::cout <<" Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
+    // std::cout << "Frame order:" << frame1.order << std::endl;
 
-
-    if (best_inliers.size() < 8) {
+    if (best_inliers.size() < 10) {
         return Eigen::Affine3f::Identity();
     }
 
@@ -300,13 +309,15 @@ Bench::start("ransac");
                                           *random_features2,
                                           transformation_est.matrix());
 
+    // std::cout << "Features to ICP size: " << random_features1->points.size() << " " << random_features2->points.size() << std::endl;
+
     Bench::stop("ransac");
     Bench::start("icp");
 
     // transform features1 with transformation from ransac and compute ICP
     pcl::transformPointCloud( *random_features1, *random_features1, transformation_est );
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud_icp (new pcl::PointCloud<pcl::PointXYZRGB>);
-    int iterations = 100;
+    int iterations = 10000;
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
     icp.setMaximumIterations(iterations);
     icp.setInputSource (random_features1);
@@ -433,7 +444,16 @@ void app::FrameMatcher::run() {
                     Bench::stop("visual odometry");
 
                     if (transform.matrix().isIdentity()) {
-                        std::cout << "no transform computed" << std::endl;
+                        std::cout << "no transform computed, skip this frame" << std::endl;
+
+
+                        {
+                            // lock currently processed frame
+                            std::lock_guard<std::mutex> mutex_guard2(processed_frame_mutex);
+                            processed_frame.t3_done = true;
+                        }
+
+
                         continue;
                     }
 

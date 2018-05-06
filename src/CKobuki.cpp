@@ -542,10 +542,12 @@ long CKobuki::loop(void *user_data, TKobukiData &Kobuki_data) {
     }
 
     displacement = (mRight + mLeft)/2;
-    // integratedGyroTheta = integratedGyroTheta + dGyroTheta;
+    
 
     double dx = displacement * cos(integratedGyroTheta + dGyroTheta / 2);
     double dy = displacement * sin(integratedGyroTheta + dGyroTheta / 2);
+    
+    integratedGyroTheta = integratedGyroTheta + dGyroTheta;
 
     gx = gx + dx;
     gy = gy + dy;

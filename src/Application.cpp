@@ -167,7 +167,7 @@ void app::Application::start(int argc, char** argv) {
     CKobuki robot(current_robot_pose);
     try {
         if (!options.offline) {
-            robot.startCommunication("/dev/cu.usbserial-kobuki_AI02MVQM", true);
+            robot.startCommunication("/dev/cu.usbserial-00002014", true);
         }
     } catch (std::runtime_error e) {
         std::cout << "ERROR: " << e.what() << std::endl;
@@ -278,12 +278,13 @@ void app::Application::start(int argc, char** argv) {
             }
         }
 
+        Bench::start("visualization");
 
         if (visualize_frame) {
 
             // Logger::log<std::string>("");
             // auto start = std::chrono::high_resolution_clock::now();
-            Bench::start("visualization");
+            
  
             transform = temp_frame.transform_visual;
             // transform = temp_frame.transform_odometry;
@@ -310,6 +311,9 @@ void app::Application::start(int argc, char** argv) {
                 // sor.setInputCloud (preview_cloud);
                 // sor.setLeafSize (60, 60, 60);
                 // sor.filter (*cloud_filtered);
+
+
+                
                 {
                     std::lock_guard<std::mutex> mutex_guard(map_model_mutex);
                     if (map_model.is_ready) {
@@ -403,7 +407,7 @@ void app::Application::start(int argc, char** argv) {
 
                      // visualize predictd frame
                      // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> preview_cloud_rgb(predicted_cloud);
-                     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> predicted_cloud_rgb(predicted_cloud, 255 , 0 , 0); 
+                     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> predicted_cloud_rgb(predicted_cloud, 255 , 120 , 0); 
                      if (!viewer->updatePointCloud<pcl::PointXYZRGB>(predicted_cloud, predicted_cloud_rgb, "predicted_cloud")) {
                          viewer->addPointCloud<pcl::PointXYZRGB>(predicted_cloud, predicted_cloud_rgb, "predicted_cloud");
                          viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "predicted_cloud");

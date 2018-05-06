@@ -13,21 +13,9 @@
 #include <pcl/point_cloud.h>
 
 #include <math.h>
+#include <limits>
 
 #include "guidedfilter.h"
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 namespace app {
@@ -164,6 +152,7 @@ namespace app {
         temp_frame.cloud->width = 640;
         temp_frame.cloud->height = 480;
         temp_frame.cloud->points.resize (640*480);
+        temp_frame.cloud->is_dense = false;
 
         const float focalLength = 525;
         const float centerX = 319.5;
@@ -188,12 +177,13 @@ namespace app {
                     pt.g = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[1];
                     pt.r = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[2];
                 } else {
-                    pt.x = 0;
-                    pt.y = 0;
-                    pt.z = 0;
-                    pt.r = 0;
-                    pt.g = 0;
-                    pt.b = 0;
+                    
+                    pt.x =
+                    pt.y = 
+                    pt.z = 
+                    pt.r = 
+                    pt.g = 
+                    pt.b = std::numeric_limits<float>::quiet_NaN();
                 }
             }
         }
@@ -364,8 +354,12 @@ namespace app {
 
 // algorithm!
                 computePointCloud(temp_frame);
+
+                // std::cout << "Currently processed cloud size: " << temp_frame.cloud->points.size() << std::endl;
+
                 Bench::start("clahe");
                 computeClahe(temp_frame);
+                // temp_frame.claheMat  = temp_frame.rgbMat;
                 Bench::stop("clahe");
                 computeKeypoints(temp_frame);
                 // computeDescriptors(temp_frame);

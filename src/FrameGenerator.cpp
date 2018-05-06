@@ -71,7 +71,7 @@ namespace app {
                 frame.y = current_robot_pose.y;
                 frame.theta = current_robot_pose.theta;
 
-
+// 
                 // std::cout << "X: " <<  frame.x << " Y:" << frame.y << " theta: " << frame.theta << std::endl;
 
 
@@ -81,6 +81,8 @@ namespace app {
                 transform.rotate (Eigen::AngleAxisf (frame.theta, Eigen::Vector3f::UnitY()));
                 frame.transform_odometry = transform;
 
+
+                // std::cout << frame.transform_odometry.matrix() << std::endl;
 
                 if (options.is_recording) {
                     milliseconds ms = duration_cast<milliseconds>(
@@ -140,7 +142,9 @@ namespace app {
                 frame.rgbMat = video.clone();
                 frame.depthMat = depth.clone();
 
-                std::cout << frame.depthMat.total() << " " << cv::countNonZero(frame.depthMat) << std::endl;
+                // std::cout << frame.depthMat.total() << " " << cv::countNonZero(frame.depthMat) << std::endl;
+
+
 
                 frame.order = i;
                 frame.generated = true;
