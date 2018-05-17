@@ -68,7 +68,7 @@ int saving_counter = 0;
 cv::Mat current_rgb_mat;
 
 
-
+// plot p;
 
 void transformationDifference(const Eigen::Affine3f & transform1, const Eigen::Affine3f & transform2, double & angle, double & length) {
     auto translation1 = transform1.translation();
@@ -157,7 +157,8 @@ void app::Application::start(int argc, char** argv) {
     options.is_slamming = true;
     // options.is_recording = true;
     // options.offline = true;
-
+    std::ofstream visual_odometry_file("/Volumes/rdisk/visual_odometry.txt", std::ofstream::out | std::ofstream::trunc);
+    std::ofstream robot_odometry_file("/Volumes/rdisk/robot_odometry.txt", std::ofstream::out | std::ofstream::trunc);
 
 
     // robot initial setup, setup shared variables which are used for propagation of current pose elsewhere
@@ -251,7 +252,7 @@ void app::Application::start(int argc, char** argv) {
     std::vector<std::string> sphere_names;
     // Frame previous_frame;
 
-    pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB> octree(20); 
+    pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB> octree(50); 
     Eigen::Affine3f transform_visual_accumulated = Eigen::Affine3f::Identity();
     // std::cout << transform_visual_accumulated.matrix() << std::endl;
 
@@ -259,6 +260,9 @@ void app::Application::start(int argc, char** argv) {
 
     // std::ofstream positions_visual_file("positions_visual.txt", std::ofstream::trunc);
     // std::ofstream positions_odometry_file("positions_odometry.txt", std::ofstream::trunc);
+
+    // static std::vector<float> vectorX;
+    // static std::vector<float> vectorY;
 
     while (is_running) {
 
@@ -287,6 +291,10 @@ void app::Application::start(int argc, char** argv) {
             
  
             transform = temp_frame.transform_visual;
+            
+            // vectorX.push_back(temp_frame.x);
+            // vectorY.push_back(temp_frame.y);
+            
             // transform = temp_frame.transform_odometry;
 
             pcl::PointXYZRGB initial_camera_pose(0, 0, 0);
@@ -295,6 +303,11 @@ void app::Application::start(int argc, char** argv) {
             camera_pose_odometry = pcl::transformPoint(initial_camera_pose, temp_frame.transform_odometry);
 
 
+
+            if (frames_processed > 0) {
+                robot_odometry_file << temp_frame.transform_odometry.matrix() << std::endl << std::endl;
+                visual_odometry_file << temp_frame.transform_visual.matrix() << std::endl << std::endl;
+            }
 
 
 
@@ -305,80 +318,76 @@ void app::Application::start(int argc, char** argv) {
                 pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.cloud, *preview_cloud, transform);
                 
 
-                pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
-                // // Create the filtering object
-                // pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-                // sor.setInputCloud (preview_cloud);
-                // sor.setLeafSize (60, 60, 60);
-                // sor.filter (*cloud_filtered);
+// ### VOXEL GRID START                
+                // if (frames_processed > 0)  {
+                //     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                //     pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+                //     sor.setInputCloud (preview_cloud);
+                //     sor.setLeafSize (50, 50, 50);
+                //     sor.filter (*cloud_filtered);
+                //     *model += *cloud_filtered;
+                // }
+// ### VOXEL GRID END                
+            
+
+
+
+// ### OCTREE START
+                //create octree structure 
+                octree.setInputCloud(preview_cloud); 
+                octree.addPointsFromInputCloud(); 
+                model->points.clear(); 
+
+                pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it; 
+                pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it_end = octree.end(); 
+
+                for (tree_it = octree.begin(15); tree_it!=tree_it_end; ++tree_it) 
+                { 
+                    Eigen::Vector3f voxel_min, voxel_max; 
+                    octree.getVoxelBounds(tree_it, voxel_min, voxel_max); 
+                    pcl::PointXYZRGB pt; 
+                    pt.x = (voxel_min.x() + voxel_max.x()) / 2.0f; 
+                    pt.y = (voxel_min.y() + voxel_max.y()) / 2.0f; 
+                    pt.z = (voxel_min.z() + voxel_max.z()) / 2.0f; 
+
+                    pt.r = 255; 
+                    pt.g = 255; 
+                    pt.b = 255; 
+                    model->points.push_back(pt); 
+                } 
+                std::cout << "Model points size: " << model->points.size() << std::endl;
+ // # OCTREE END   
+
+
+// # PCD START
+                // global model growing 
+                // *model += *preview_cloud;
+// # PCD END
 
 
                 
+                // Create the filtering object    
                 {
                     std::lock_guard<std::mutex> mutex_guard(map_model_mutex);
                     if (map_model.is_ready) {
 
                         Frame predicted_frame = map_model.getPredictedFrame();
-                        pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *cloud_filtered, transform);
+                        pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *preview_cloud, transform);
+                        
                         if (predicted_frame.cloud->points.size() > 0)
                             pcl::transformPointCloud<pcl::PointXYZRGB>(*predicted_frame.cloud, *predicted_cloud, transform);
                         
 
-                        *model = *map_model.feature_cloud;
+                        // *model = *map_model.feature_cloud;
+
                     }
                 }
                 
  
 
-                // 
-    //             //create octree structure 
-    //             octree.setInputCloud(preview_cloud); 
-    //             // update bounding box automatically 
-    //             // octree.defineBoundingBox(); 
-    //             // add points in the tree 
-    //             octree.addPointsFromInputCloud(); 
-    //             // model->points.clear(); 
 
-
-    //             pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it; 
-    //             pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it_end = octree.end(); 
-
-    //             for (tree_it = octree.begin(10); tree_it!=tree_it_end; ++tree_it) 
-    //             { 
-    //                 Eigen::Vector3f voxel_min, voxel_max; 
-    //                 octree.getVoxelBounds(tree_it, voxel_min, voxel_max); 
-    //                 pcl::PointXYZRGB pt; 
-    //                 pt.x = (voxel_min.x() + voxel_max.x()) / 2.0f; 
-    //                 pt.y = (voxel_min.y() + voxel_max.y()) / 2.0f; 
-    //                 pt.z = (voxel_min.z() + voxel_max.z()) / 2.0f; 
-
-
-    // //                                if (max_cloud_height < pt.y) { 
-    // //                                    max_cloud_height = pt.y; 
-    // //                                } 
-    // //                                if (min_cloud_height > pt.y) { 
-    // //                                    min_cloud_height = pt.y; 
-    // //                                } 
-
-    //                 pt.r = 255; 
-    //                 pt.g = 255; 
-    //                 pt.b = 255; 
-    //                 model->points.push_back(pt); 
-    //             } 
-    // 
-    //                            double scale = max_cloud_height - min_cloud_height; 
-    //                            for (auto & point : model->points) { 
-    // 
-    //                                double percentage_of_color = (point.y - min_cloud_height) * 100 / scale; 
-    //                                std::cout << point.y << " of:" << scale  << " min:" << min_cloud_height << " max: " << max_cloud_height << " %: " << percentage_of_color << std::endl; 
-    // 
-    //                                point.r = 50; 
-    //                                point.g = round(255 * percentage_of_color); 
-    //                                point.b = round(255 * percentage_of_color); 
-    //                            } 
-
-                // global model growing 
-                // *model += *preview_cloud;
+                
+                
 
             } 
 
@@ -397,8 +406,8 @@ void app::Application::start(int argc, char** argv) {
                 if (frames_processed % 1 == 0){
 
                     // visualize world model
-                    // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
-                    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "x");
+                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
+                    // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "y");
 
                     if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
                          viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
@@ -459,6 +468,9 @@ void app::Application::start(int argc, char** argv) {
 
     }
 
+    // p.plot_data(vectorY, vectorX);
+    // std::string out;
+    // std::cin >> out;
     is_running = false;
 
     t0.join();
@@ -469,7 +481,7 @@ void app::Application::start(int argc, char** argv) {
     viewer->close();
 
 
-    pcl::io::savePLYFileBinary("model.ply", *model);
+    pcl::io::savePLYFileBinary("/Volumes/rdisk/model.ply", *model);
     std::cout << "Saving model!" << std::endl;
 
 

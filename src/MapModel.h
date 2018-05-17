@@ -136,7 +136,7 @@ public:
 
 		// std::cout << feature_point_indices.size() << std::endl;
 		// select last 30 poses, if available
-		int used_previous_poses_count = 20;
+		int used_previous_poses_count = 10;
 		int used_frames_count = (camera_poses.size() > used_previous_poses_count ? used_previous_poses_count : camera_poses.size());
 		for (int i = camera_poses.size() - 1; i > camera_poses.size() - used_frames_count && i > 0; i=i-2) {
 			feature_point_indices.insert(

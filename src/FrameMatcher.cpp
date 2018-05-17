@@ -54,7 +54,7 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
-    const int MAXIMAL_FEATURE_DISTANCE = 100;
+    const int MAXIMAL_FEATURE_DISTANCE = 60;
 
     // computeDescriptors(frame1);
 
@@ -174,7 +174,7 @@ Bench::count("Good features", feature_cloud1->points.size());
 Bench::start("ransac");
 
 // RANSAC START
-    int max_iterations = 10000;
+    int max_iterations = 5000;
     const int min_support = 5;
     const float inlier_error_threshold = 60.0f;
     const int pcount = feature_cloud1->points.size();

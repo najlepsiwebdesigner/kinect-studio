@@ -6,7 +6,7 @@
 #include <stdexcept>
 
 
-plot p;
+
 static std::vector<float> vectorX;
 static std::vector<float> vectorY;
 static std::vector<float> vectorGyroTheta;

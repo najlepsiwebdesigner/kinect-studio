@@ -28,7 +28,7 @@ namespace app {
         /// ### feature detection ± 13 ms
         // Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
        Ptr<AKAZE> detector = AKAZE::create();
-        // Ptr<ORB> detector = ORB::create(3000);
+        // Ptr<ORB> detector = ORB::create(2000);
         // Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
         // Ptr<BRISK> detector = BRISK::create();
@@ -39,13 +39,14 @@ namespace app {
         // Bench::start("feature detection");
         // detector->detect( temp_frame.claheMat, keypoints);
         // temp_frame.keypoints = keypoints;
-        // Bench::start("feature detection");
+        // Bench::stop("feature detection");
 
 
-        /// ### feature description
-        // Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
-        // // Ptr<SURF> extractor = SURF::create();
-        // Ptr<AKAZE> extractor = AKAZE::create();
+        // /// ### feature description
+        // Ptr<ORB> extractor = ORB::create();
+        // // Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
+        // // // Ptr<SURF> extractor = SURF::create();
+        // // Ptr<AKAZE> extractor = AKAZE::create();
         // Bench::start("feature descriptors");
         // extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
         // Bench::stop("feature descriptors");
@@ -358,9 +359,12 @@ namespace app {
                 // std::cout << "Currently processed cloud size: " << temp_frame.cloud->points.size() << std::endl;
 
                 Bench::start("clahe");
-                computeClahe(temp_frame);
-                // temp_frame.claheMat  = temp_frame.rgbMat;
+                // computeClahe(temp_frame);
+                temp_frame.claheMat  = temp_frame.rgbMat;
                 Bench::stop("clahe");
+
+
+                
                 computeKeypoints(temp_frame);
                 // computeDescriptors(temp_frame);
 
