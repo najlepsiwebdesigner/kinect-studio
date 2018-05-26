@@ -54,7 +54,7 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
-    const int MAXIMAL_FEATURE_DISTANCE = 60;
+    const int MAXIMAL_FEATURE_DISTANCE = 100;
 
     // computeDescriptors(frame1);
 
@@ -174,7 +174,7 @@ Bench::count("Good features", feature_cloud1->points.size());
 Bench::start("ransac");
 
 // RANSAC START
-    int max_iterations = 5000;
+    int max_iterations = 10000;
     const int min_support = 5;
     const float inlier_error_threshold = 60.0f;
     const int pcount = feature_cloud1->points.size();
@@ -190,19 +190,12 @@ Bench::start("ransac");
     cv::RNG rng;
     std::vector<int> best_inliers;
 
-
+    int ransac_number_of_iterations = 0;
     for(int k = 0; k < max_iterations; k++) {
-
-        // std::cout << k << std::endl;
-        // std::cout << "iterations:" << std::endl;
+        ransac_number_of_iterations = k;
 
         random_features1->clear();
         random_features2->clear();
-
-
-        // pcl::PointXYZRGB prevcpoint1;
-        // pcl::PointXYZRGB prevcpoint2;
-        // bool skipThisIteration = false;
 
         //Select random points
         for(int i=0; i < min_support; i++) {
@@ -211,35 +204,9 @@ Bench::start("ransac");
             pcl::PointXYZRGB & cpoint1 = feature_cloud1->points[idx];
             pcl::PointXYZRGB & cpoint2 = feature_cloud2->points[idx];
 
-            // // skip first iteration
-            // if (i>0) {
-            //     float distance1 = pcl::geometry::distance(cpoint1, prevcpoint1);
-            //     float distance2 = pcl::geometry::distance(cpoint2, prevcpoint2);
-
-            //     if (abs(distance1 - distance2) > 1000) {
-
-            //         skipThisIteration = true;
-            //         break;
-            //     }
-            // }
-
-
-
             random_features1->points.push_back(cpoint1);
             random_features2->points.push_back(cpoint2);
-
-            // prevcpoint1 = cpoint1;
-            // prevcpoint2 = cpoint1;
         }
-
-        // if (skipThisIteration) {
-        //     // k--;
-        //     std::cout << "ransac check: distance too far!" << std::endl;
-        //     // max_iterations++;
-        //     continue;
-        // }
-
-
 
         estPtr.reset ( new pcl::registration::TransformationEstimationSVD < pcl::PointXYZRGB, pcl::PointXYZRGB > () );
         Eigen::Affine3f current_transformation;
@@ -267,26 +234,35 @@ Bench::start("ransac");
             }
         }
 
-        if (inliers.size() < 10) {
-            // max_iterations++;
-            // std::cout << "not enough inliers!!" << std::endl;
-            continue;
-        }
+        // if (inliers.size() < 10) {
+        //     // max_iterations++;
+        //     // std::cout << "not enough inliers!!" << std::endl;
+        //     continue;
+        // }
+
+        
+
+        // if (inliers.size())
 
         if(inliers.size() > best_inliers.size()) {
             best_inliers = inliers;
         }
+
+        if (((inliers.size() * 100) / pcount) > 50) {
+            break;
+        }
+        
     }
+
+    Bench::count("Inlier count", best_inliers.size());
+    Bench::count("Ransac count", ransac_number_of_iterations);
+    Bench::count("Ransac inlier ratio", ((best_inliers.size() * 100) / pcount));
+
+
     // float ratio 
-    // std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << 
-    std::cout <<" Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
+    // std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << std::endl;
+    // std::cout <<" Inlier count: " << best_inliers.size() << "/" << pcount << "\n";
     // std::cout << "Frame order:" << frame1.order << std::endl;
-
-    if (best_inliers.size() < 10) {
-        return Eigen::Affine3f::Identity();
-    }
-
-
 
 
     // estimate final transformation with inliers
@@ -322,10 +298,10 @@ Bench::start("ransac");
     icp.setMaximumIterations(iterations);
     icp.setInputSource (random_features1);
     icp.setInputTarget (random_features2);
-    icp.setTransformationEpsilon (1e-9);
-    icp.setMaxCorrespondenceDistance (200);
+    icp.setTransformationEpsilon (1e-3);
+    icp.setMaxCorrespondenceDistance (500);
     icp.setEuclideanFitnessEpsilon (1);
-    icp.setRANSACOutlierRejectionThreshold (1.3);
+    icp.setRANSACOutlierRejectionThreshold (10);
     icp.align(*transformed_cloud_icp);
 
     if (icp.hasConverged ()){

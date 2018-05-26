@@ -355,7 +355,7 @@ void app::Application::start(int argc, char** argv) {
                     pt.b = 255; 
                     model->points.push_back(pt); 
                 } 
-                std::cout << "Model points size: " << model->points.size() << std::endl;
+                // std::cout << "Model points size: " << model->points.size() << std::endl;
  // # OCTREE END   
 
 
@@ -403,23 +403,23 @@ void app::Application::start(int argc, char** argv) {
                 viewer->addSphere(camera_pose_visual, 20, 255, 0, 0, sphere_name);
                 // end camera poses!
 
-                if (frames_processed % 1 == 0){
+                if (frames_processed % 3 == 0){
 
                     // visualize world model
-                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
-                    // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "y");
+                    // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
+                    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "y");
 
                     if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
                          viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
-                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "model");
+                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "model");
                      }
 
                      // visualize predictd frame
                      // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> preview_cloud_rgb(predicted_cloud);
-                     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> predicted_cloud_rgb(predicted_cloud, 255 , 120 , 0); 
+                     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> predicted_cloud_rgb(predicted_cloud, 255 , 0 , 0); 
                      if (!viewer->updatePointCloud<pcl::PointXYZRGB>(predicted_cloud, predicted_cloud_rgb, "predicted_cloud")) {
                          viewer->addPointCloud<pcl::PointXYZRGB>(predicted_cloud, predicted_cloud_rgb, "predicted_cloud");
-                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "predicted_cloud");
+                         viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "predicted_cloud");
                      }
                      
                 }

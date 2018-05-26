@@ -5,20 +5,36 @@
 #include "FrameProcessor.h"
 #include "Application.h"
 
-#include "parallel_threshold.h"
-#include "fastBilateral.hpp"
-
+#include <math.h>
+#include <limits>
 #include <cmath>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/features/integral_image_normal.h>
 
-#include <math.h>
-#include <limits>
-
+#include "parallel_threshold.h"
+#include "fastBilateral.hpp"
 #include "guidedfilter.h"
 
 
 namespace app {
+
+
+    void FrameProcessor::computeNormals(Frame & temp_frame) {
+        
+        pcl::IntegralImageNormalEstimation<pcl::PointXYZRGB, pcl::Normal> ne;
+        ne.setInputCloud (temp_frame.cloud);
+        pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+        ne.setSearchMethod (tree);
+        // Output datasets
+        pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+        // ne.setRadiusSearch (2);
+        ne.compute (*cloud_normals);
+
+    }
+
+
 
 
     void FrameProcessor::computeKeypoints(Frame & temp_frame) {
@@ -27,8 +43,9 @@ namespace app {
 
         /// ### feature detection ± 13 ms
         // Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
-       Ptr<AKAZE> detector = AKAZE::create();
-        // Ptr<ORB> detector = ORB::create(2000);
+       // Ptr<AKAZE> detector = AKAZE::create();
+        Ptr<AKAZE> detector = AKAZE::create(AKAZE::DESCRIPTOR_MLDB,486,3, 0.0015f,2,2,KAZE::DIFF_CHARBONNIER);
+        // Ptr<ORB> detector = ORB::create(1000);
         // Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
         // Ptr<BRISK> detector = BRISK::create();
@@ -160,7 +177,7 @@ namespace app {
         const float centerY = 239.5;
         const float scalingFactor = 1; //5000.0;
         int depth_idx = 0;
-        const float z_thresh = 8000;
+        const float z_thresh = 12000;
 
         for (int v = 0; v < 480; ++v)
         {
@@ -203,6 +220,7 @@ namespace app {
         const float centerY = 239.5;
         const float scalingFactor = 1; //5000.0;
         int depth_idx = 0;
+        const float z_thresh = 8000;
 
         for (int v = 0; v < 480; ++v)
         {
@@ -210,14 +228,24 @@ namespace app {
             {
                 pcl::PointXYZRGBNormal & pt = cloud_ptr->points[depth_idx];
 
-                if (temp_frame.depthMat.at<uint16_t>(v,u) == 0) continue;
-
                 pt.z = temp_frame.depthMat.at<uint16_t>(v,u) / scalingFactor;
-                pt.x = (static_cast<float> (u) - centerX) * pt.z / focalLength;
-                pt.y = (static_cast<float> (v) - centerY) * pt.z / focalLength;
-                pt.b = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[0];
-                pt.g = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[1];
-                pt.r = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[2];
+
+                if (pt.z < z_thresh) {
+
+                    pt.x = (static_cast<float> (u) - centerX) * pt.z / focalLength;
+                    pt.y = (static_cast<float> (v) - centerY) * pt.z / focalLength;
+                    pt.b = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[0];
+                    pt.g = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[1];
+                    pt.r = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[2];
+                } else {
+                    
+                    pt.x =
+                    pt.y = 
+                    pt.z = 
+                    pt.r = 
+                    pt.g = 
+                    pt.b = std::numeric_limits<float>::quiet_NaN();
+                }
 
 
                float dzdx = (temp_frame.depthMat.at<uint16_t>(u+1, v) - temp_frame.depthMat.at<uint16_t>(u-1, v)) / 2.0;
@@ -231,7 +259,7 @@ namespace app {
             }
         }
 
-        temp_frame.cloud_with_normals = cloud_ptr;
+        // *temp_frame.cloud_with_normals = *cloud_ptr;
     }
 
 
@@ -354,13 +382,20 @@ namespace app {
                 Bench::start("processing");
 
 // algorithm!
+                Bench::start("cloud computation");
                 computePointCloud(temp_frame);
+                Bench::stop("cloud computation");
+
+
+                // Bench::start("normals computation");
+                // computeNormals(temp_frame);
+                // Bench::stop("normals computation");
 
                 // std::cout << "Currently processed cloud size: " << temp_frame.cloud->points.size() << std::endl;
 
                 Bench::start("clahe");
-                // computeClahe(temp_frame);
-                temp_frame.claheMat  = temp_frame.rgbMat;
+                computeClahe(temp_frame);
+                // temp_frame.claheMat  = temp_frame.rgbMat;
                 Bench::stop("clahe");
 
 

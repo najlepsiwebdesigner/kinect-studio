@@ -43,6 +43,7 @@ namespace app {
         void computeBearingAngleImage(Frame & temp_frame);
         void computeKeypoints(Frame & temp_frame);
         void computeDescriptors(Frame & temp_frame);
+        void computeNormals(Frame & temp_frame);
 
         void run();
     };
