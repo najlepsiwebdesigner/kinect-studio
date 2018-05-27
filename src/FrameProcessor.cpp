@@ -45,8 +45,8 @@ namespace app {
         // Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
        // Ptr<AKAZE> detector = AKAZE::create();
        // 
-        // Ptr<AKAZE> detector = AKAZE::create(AKAZE::DESCRIPTOR_MLDB,486,3, 0.0015f,2,2,KAZE::DIFF_CHARBONNIER);
-        Ptr<ORB> detector = ORB::create(500, 1.5, 4);
+        Ptr<AKAZE> detector = AKAZE::create(AKAZE::DESCRIPTOR_MLDB,486,3, 0.001f,2,3,KAZE::DIFF_CHARBONNIER);
+        // Ptr<ORB> detector = ORB::create(500, 1.5, 4);
         // Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
         // Ptr<BRISK> detector = BRISK::create();

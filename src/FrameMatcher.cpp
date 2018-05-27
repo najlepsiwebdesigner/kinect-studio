@@ -54,7 +54,7 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
-    const int MAXIMAL_FEATURE_DISTANCE = 25;
+    const int MAXIMAL_FEATURE_DISTANCE = 50;
 
     // computeDescriptors(frame1);
 
@@ -250,7 +250,7 @@ Bench::start("ransac");
             best_inliers = inliers;
         }
 
-        if (((inliers.size() * 100) / pcount) > 40) {
+        if (((inliers.size() * 100) / pcount) > 50) {
             break;
         }
         
