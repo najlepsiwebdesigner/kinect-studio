@@ -54,7 +54,7 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
-    const int MAXIMAL_FEATURE_DISTANCE = 100;
+    const int MAXIMAL_FEATURE_DISTANCE = 25;
 
     // computeDescriptors(frame1);
 
@@ -72,9 +72,9 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     Mat & descriptors2 = frame2.descriptors;
 
     // ORB, BRIEF, BRISF
-    cv::BFMatcher matcher(cv::NORM_HAMMING);
+    // cv::BFMatcher matcher(cv::NORM_HAMMING);
     // ORB special
-    // cv::BFMatcher matcher(cv::NORM_HAMMING2);
+    cv::BFMatcher matcher(cv::NORM_HAMMING2);
     // SURF, SIFT
     // cv::BFMatcher matcher(cv::NORM_L1);
     // FLANN
@@ -119,6 +119,8 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     for (int i = 0; i < matches.size(); i++) {
         bool is_good_match = false;
 
+        Bench::count("match distance", matches[i].distance);
+        
         if( matches[i].distance < MAXIMAL_FEATURE_DISTANCE) {
             auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;
             auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
@@ -248,7 +250,7 @@ Bench::start("ransac");
             best_inliers = inliers;
         }
 
-        if (((inliers.size() * 100) / pcount) > 50) {
+        if (((inliers.size() * 100) / pcount) > 40) {
             break;
         }
         

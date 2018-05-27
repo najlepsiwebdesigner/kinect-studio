@@ -7,6 +7,7 @@
 #include <chrono>
 #include <iostream>
 #include <numeric>
+#include <fstream>
 
 class Bench {
 public:
@@ -40,6 +41,12 @@ public:
 					   << "  average time: " << accumulate( row.second.begin(), row.second.end(), 0.0)/row.second.size() 
 					   << std::endl << std::endl; 
 
+		    std::string output_filename = "/Volumes/rdisk/" + row.first + "-times.txt";
+		    std::ofstream output_file(output_filename);
+		    for (const auto &e : row.second) output_file << e << "\n";
+		    // std::ostream_iterator<double> output_iterator(output_file, "\n");
+    		// std::copy(row.second.begin(), row.second.end(), output_iterator);
+
 		}
 
 		for (auto const& row : Bench::labels2counts) {
@@ -47,6 +54,12 @@ public:
 					  << "  number of samples: " << row.second.size() << std::endl
 					  << "  average value: " << accumulate( row.second.begin(), row.second.end(), 0.0)/row.second.size()
 					  << std::endl << std::endl; 
+			
+			std::string output_filename = "/Volumes/rdisk/" + row.first + "-values.txt";
+		    std::ofstream output_file(output_filename);
+		    for (const auto &e : row.second) output_file << e << "\n";
+		    // std::ostream_iterator<double> output_iterator(output_file, "\n");
+    		// std::copy(row.second.begin(), row.second.end(), output_iterator);
 		}
 
 	}

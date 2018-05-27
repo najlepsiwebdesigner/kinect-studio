@@ -319,42 +319,42 @@ void app::Application::start(int argc, char** argv) {
                 
 
 // ### VOXEL GRID START                
-                // if (frames_processed > 0)  {
-                //     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
-                //     pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-                //     sor.setInputCloud (preview_cloud);
-                //     sor.setLeafSize (50, 50, 50);
-                //     sor.filter (*cloud_filtered);
-                //     *model += *cloud_filtered;
-                // }
+                if (frames_processed > 0)  {
+                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                    pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+                    sor.setInputCloud (preview_cloud);
+                    sor.setLeafSize (50, 50, 50);
+                    sor.filter (*cloud_filtered);
+                    *model += *cloud_filtered;
+                }
 // ### VOXEL GRID END                
             
 
 
 
 // ### OCTREE START
-                //create octree structure 
-                octree.setInputCloud(preview_cloud); 
-                octree.addPointsFromInputCloud(); 
-                model->points.clear(); 
+                // //create octree structure 
+                // octree.setInputCloud(preview_cloud); 
+                // octree.addPointsFromInputCloud(); 
+                // model->points.clear(); 
 
-                pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it; 
-                pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it_end = octree.end(); 
+                // pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it; 
+                // pcl::octree::OctreePointCloudVoxelCentroid<pcl::PointXYZRGB>::Iterator tree_it_end = octree.end(); 
 
-                for (tree_it = octree.begin(15); tree_it!=tree_it_end; ++tree_it) 
-                { 
-                    Eigen::Vector3f voxel_min, voxel_max; 
-                    octree.getVoxelBounds(tree_it, voxel_min, voxel_max); 
-                    pcl::PointXYZRGB pt; 
-                    pt.x = (voxel_min.x() + voxel_max.x()) / 2.0f; 
-                    pt.y = (voxel_min.y() + voxel_max.y()) / 2.0f; 
-                    pt.z = (voxel_min.z() + voxel_max.z()) / 2.0f; 
+                // for (tree_it = octree.begin(15); tree_it!=tree_it_end; ++tree_it) 
+                // { 
+                //     Eigen::Vector3f voxel_min, voxel_max; 
+                //     octree.getVoxelBounds(tree_it, voxel_min, voxel_max); 
+                //     pcl::PointXYZRGB pt; 
+                //     pt.x = (voxel_min.x() + voxel_max.x()) / 2.0f; 
+                //     pt.y = (voxel_min.y() + voxel_max.y()) / 2.0f; 
+                //     pt.z = (voxel_min.z() + voxel_max.z()) / 2.0f; 
 
-                    pt.r = 255; 
-                    pt.g = 255; 
-                    pt.b = 255; 
-                    model->points.push_back(pt); 
-                } 
+                //     pt.r = 255; 
+                //     pt.g = 255; 
+                //     pt.b = 255; 
+                //     model->points.push_back(pt); 
+                // } 
                 // std::cout << "Model points size: " << model->points.size() << std::endl;
  // # OCTREE END   
 
@@ -406,8 +406,8 @@ void app::Application::start(int argc, char** argv) {
                 if (frames_processed % 3 == 0){
 
                     // visualize world model
-                    // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
-                    pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "y");
+                    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
+                    // pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZRGB> rgb(model, "y");
 
                     if (!viewer->updatePointCloud<pcl::PointXYZRGB>(model, rgb, "model")) {
                          viewer->addPointCloud<pcl::PointXYZRGB>(model, rgb, "model");
