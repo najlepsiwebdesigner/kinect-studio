@@ -199,8 +199,35 @@ void app::Application::start(int argc, char** argv) {
 
     // control robot here
     std::thread t0([&robot]() {
-       // robot.goStraight(0.3); 
-       // robot.doRotation(PI*2); 
+        // std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+       // usleep(5*1000*1000);
+       // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+       // robot.goStraight(1); 
+       // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+       // robot.goStraight(-1);
+
+
+       std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+       // robot.doRotation(10*PI);
+
+
+        for (int i = 0; i < 10; i++) {
+            robot.goStraight(2); 
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));            
+            robot.goStraight(-2); 
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            std::cout << i << std::endl;
+        }
+       
+
+
+        Application::is_running = false;        
+
+
+       // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+       // robot.doRotation(PI/2);
+       // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+       // robot.doRotation(-PI/2); 
 
        // robot.goStraight(0.3); 
        // robot.doRotation(PI/2); 
@@ -210,6 +237,7 @@ void app::Application::start(int argc, char** argv) {
 
        // robot.goStraight(0.3); 
        // robot.doRotation(PI/2); 
+       std::this_thread::sleep_for(std::chrono::milliseconds(30));
     });
 
     std::thread t1([&frameGenerator]() {
@@ -312,28 +340,28 @@ void app::Application::start(int argc, char** argv) {
 
 
             // this computes and updates world model
-            if (options.is_slamming && frames_processed % 1 == 0) { 
+            if (options.is_slamming && frames_processed % 5 == 0) { 
 
                 // transform preview clouds
                 pcl::transformPointCloud<pcl::PointXYZRGB>(*temp_frame.cloud, *preview_cloud, transform);
                 
 
 // ### VOXEL GRID START                
-                if (frames_processed > 0)  {
-                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
-                    pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-                    sor.setInputCloud (preview_cloud);
-                    sor.setLeafSize (50, 50, 50);
-                    sor.filter (*cloud_filtered);
-                    *model += *cloud_filtered;
-                }
+                // if (frames_processed > 0)  {
+                //     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZRGB> ());
+                //     pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+                //     sor.setInputCloud (preview_cloud);
+                //     sor.setLeafSize (75, 75, 75);
+                //     sor.filter (*cloud_filtered);
+                //     *model += *cloud_filtered;
+                // }
 // ### VOXEL GRID END                
             
 
 
 
 // ### OCTREE START
-                // //create octree structure 
+                // // create octree structure 
                 // octree.setInputCloud(preview_cloud); 
                 // octree.addPointsFromInputCloud(); 
                 // model->points.clear(); 
@@ -361,7 +389,8 @@ void app::Application::start(int argc, char** argv) {
 
 // # PCD START
                 // global model growing 
-                // *model += *preview_cloud;
+                *model = *preview_cloud;
+                // model += preview_cloud;
 // # PCD END
 
 
@@ -393,17 +422,17 @@ void app::Application::start(int argc, char** argv) {
 
             if (options.show_3D) {
                 // add current camera positions from visual and odometry 
-                std::string sphere_name = "sphere_odometry_";
-                sphere_name += std::to_string(frames_processed);
-                sphere_names.push_back(sphere_name);
-                viewer->addSphere(camera_pose_odometry, 20, 0, 255, 0, sphere_name);
-                sphere_name = "sphere_visual_";
-                sphere_name += std::to_string(frames_processed);
-                sphere_names.push_back(sphere_name);
-                viewer->addSphere(camera_pose_visual, 20, 255, 0, 0, sphere_name);
+                // std::string sphere_name = "sphere_odometry_";
+                // sphere_name += std::to_string(frames_processed);
+                // sphere_names.push_back(sphere_name);
+                // viewer->addSphere(camera_pose_odometry, 20, 0, 255, 0, sphere_name);
+                // sphere_name = "sphere_visual_";
+                // sphere_name += std::to_string(frames_processed);
+                // sphere_names.push_back(sphere_name);
+                // viewer->addSphere(camera_pose_visual, 20, 255, 0, 0, sphere_name);
                 // end camera poses!
 
-                if (frames_processed % 3 == 0){
+                if (frames_processed % 5 == 0){
 
                     // visualize world model
                     pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(model);
@@ -414,7 +443,7 @@ void app::Application::start(int argc, char** argv) {
                          viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 2, "model");
                      }
 
-                     // visualize predictd frame
+                     // visualize predictd frame, e.g. feature cloud
                      // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> preview_cloud_rgb(predicted_cloud);
                      pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZRGB> predicted_cloud_rgb(predicted_cloud, 255 , 0 , 0); 
                      if (!viewer->updatePointCloud<pcl::PointXYZRGB>(predicted_cloud, predicted_cloud_rgb, "predicted_cloud")) {
@@ -425,21 +454,21 @@ void app::Application::start(int argc, char** argv) {
                 }
 
                 // preview cloud visualization
-                pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbc(preview_cloud);
-                if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "current_cloud")) {
-                    viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "current_cloud");
-                }
+                // pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgbc(preview_cloud);
+                // if (!viewer->updatePointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "current_cloud")) {
+                //     viewer->addPointCloud<pcl::PointXYZRGB>(preview_cloud, rgbc, "current_cloud");
+                // }
 
             }
 
             if (options.show2D) {
                 // // main CV visualization loop, has to be placed in main thread due to plc and opencv's restrictions
-                // cv::Mat depthf(cv::Size(640, 480), CV_8UC1);
-                // temp_frame.depthMat.convertTo(depthf, CV_8UC1, 255.0 / 2048.0);
+                cv::Mat depthf(cv::Size(640, 480), CV_8UC1);
+                temp_frame.depthMat.convertTo(depthf, CV_8UC1, 255.0 / 2048.0);
 
                 cv::imshow("Video", temp_frame.claheMat);
-                // cv::imshow("Depth", depthf);
-                // // cv::imshow("BA", processed_frame.baMat);
+                cv::imshow("Depth", depthf);
+                cv::imshow("BA", temp_frame.depthClipMask);
             }
 
             // // time benchmark stop

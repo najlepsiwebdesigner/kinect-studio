@@ -136,7 +136,7 @@ public:
 
 		// std::cout << feature_point_indices.size() << std::endl;
 		// select last 30 poses, if available
-		int used_previous_poses_count = 20;
+		int used_previous_poses_count = 10;
 		int used_frames_count = (camera_poses.size() > used_previous_poses_count ? used_previous_poses_count : camera_poses.size());
 		for (int i = camera_poses.size() - 1; i > camera_poses.size() - used_frames_count && i > 0; i=i-2) {
 			feature_point_indices.insert(
@@ -146,6 +146,39 @@ public:
 			);
 		}
 		
+		// auto last_camera_pose_id = camera_poses.size() - 1;
+		// std::cout << camera_poses[last_camera_pose_id].matrix() << std::endl;
+		// std::cout << last_pose_x << " " << last_pose_y << " " << last_pose_z << std::endl;
+
+		// int j = 1;
+		// int max_prev_poses_count = 100;
+		// int prev_poses_count = 0;
+		// while (j < 100) {
+
+		// 	double a,b,c, dist = 0;
+  //           a = (camera_poses[last_camera_pose_id](0,3) + 1) - (camera_poses[last_camera_pose_id - j](0,3) + 1);
+  //           b = (camera_poses[last_camera_pose_id](1,3) + 1) - (camera_poses[last_camera_pose_id - j](1,3) + 1);
+  //           c = (camera_poses[last_camera_pose_id](2,3) + 1) - (camera_poses[last_camera_pose_id - j](2,3) + 1);
+  //           dist = sqrt(a*a + b*b + c*c);
+
+  //           if (dist < 3000 && !(last_camera_pose_id - j > camera_poses.size())) {
+  //           	feature_point_indices.insert(
+		// 			feature_point_indices.end(),
+		// 			camera_poses_to_indices[last_camera_pose_id - j].begin(),
+		// 			camera_poses_to_indices[last_camera_pose_id - j].end()
+		// 		);
+  //  				prev_poses_count++;
+  //  				// std::cout << (last_camera_pose_id - j) << std::endl;
+  //           }
+
+
+  //           j++;
+
+  //           if (prev_poses_count > max_prev_poses_count) break;
+  //           if (j > camera_poses.size()) break;
+		// }
+		// std::cout << std::endl << std::endl;
+
 
 		// std::cout << "camera_poses_size: " << camera_poses.size() << std::endl;
 		// std::cout << "feature_cloud_size: " << feature_cloud->points.size() << std::endl;

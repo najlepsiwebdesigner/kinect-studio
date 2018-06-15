@@ -35,6 +35,33 @@ namespace app {
     }
 
 
+    void FrameProcessor::depthClipRgb(Frame & temp_frame) {
+        
+        // temp_frame.rgbMat.copyTo(temp_frame.baMat);
+        int depth_idx = 0;
+        int white_count = 0;
+        for (int v = 0; v < 480; ++v) {
+            for (int u = 0; u < 640; ++u, ++depth_idx) {
+                // std::cout << temp_frame.depthMat.at<uint16_t>(v,u) << std::endl;
+                if (temp_frame.depthMat.at<uint16_t>(v,u)  == 0 
+                    // || temp_frame.depthMat.at<uint16_t>(v,u) > 11000
+                ) 
+                {
+                    temp_frame.depthClipMask.at<uchar>(v,u) = 0;
+                } else {
+                    temp_frame.depthClipMask.at<uchar>(v,u) = 255;
+                    white_count++;
+                }
+            }
+        }
+
+        erode(temp_frame.depthClipMask, temp_frame.depthClipMask, cv::Mat(), cv::Point(-1, -1), 1, 1, 1);
+        // dilate(temp_frame.depthClipMask, temp_frame.depthClipMask, cv::Mat(), cv::Point(-1, -1), 2, 1, 1);
+        // erode(temp_frame.depthClipMask, temp_frame.depthClipMask, cv::Mat(), cv::Point(-1, -1), 2, 1, 1);
+        // temp_frame.baMat = temp_frame.depthClipMask.clone();
+        Bench::count("DepthClipMask number of white pixels", white_count);
+    }
+
 
 
     void FrameProcessor::computeKeypoints(Frame & temp_frame) {
@@ -42,17 +69,23 @@ namespace app {
         using namespace cv::xfeatures2d;
 
         /// ### feature detection ± 13 ms
-        // Ptr<SURF> detector = SURF::create( 100,4,1,false,false );
+        // Ptr<SURF> detector = SURF::create();
+       
        // Ptr<AKAZE> detector = AKAZE::create();
-       // 
-        Ptr<AKAZE> detector = AKAZE::create(AKAZE::DESCRIPTOR_MLDB,486,3, 0.001f,2,3,KAZE::DIFF_CHARBONNIER);
-        // Ptr<ORB> detector = ORB::create(500, 1.5, 4);
+       
+        // Ptr<AKAZE> detector = AKAZE::create(AKAZE::DESCRIPTOR_MLDB,486,3, 0.0015f,2,2);
+       
+        Ptr<ORB> detector = ORB::create(500, 2, 2);
+        // Ptr<ORB> detector = ORB::create();
+        
         // Ptr<SIFT> detector = SIFT::create();
         // Ptr<MSER> detector = MSER::create();
-        // Ptr<BRISK> detector = BRISK::create();
-//         Ptr<KAZE> detector = KAZE::create();
+        // Ptr<BRISK> detector = BRISK::create(20,2,1.5);
+        // Ptr<StarDetector> detector = StarDetector::create();
+        // Ptr<KAZE> detector = KAZE::create();
          // Ptr<FastFeatureDetector> detector = FastFeatureDetector::create();
 
+        // Ptr<StarDetector> detector = StarDetector::create(20);
         // std::vector<KeyPoint> keypoints;
         // Bench::start("feature detection");
         // detector->detect( temp_frame.claheMat, keypoints);
@@ -60,20 +93,21 @@ namespace app {
         // Bench::stop("feature detection");
 
 
-        // /// ### feature description
-        // Ptr<ORB> extractor = ORB::create();
-        // // Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
-        // // // Ptr<SURF> extractor = SURF::create();
-        // // Ptr<AKAZE> extractor = AKAZE::create();
+        // // /// ### feature description
+        // // Ptr<ORB> extractor = ORB::create();
+        // Ptr<BriefDescriptorExtractor> extractor = BriefDescriptorExtractor::create();
+        // // // // Ptr<SURF> extractor = SURF::create();
+        // // // Ptr<AKAZE> extractor = AKAZE::create();
         // Bench::start("feature descriptors");
         // extractor->compute(temp_frame.claheMat, keypoints, temp_frame.descriptors);
         // Bench::stop("feature descriptors");
 
-        cv::Mat tmp;
-        detector->detectAndCompute(temp_frame.claheMat, tmp, temp_frame.keypoints,temp_frame.descriptors);
-
-
-
+        // cv::Mat tmp;
+        Bench::start("feature detection");
+        detector->detectAndCompute(temp_frame.claheMat, temp_frame.depthClipMask, temp_frame.keypoints,temp_frame.descriptors);
+        Bench::stop("feature detection");
+        Bench::count("keypoints count", temp_frame.keypoints.size());
+        // drawKeypoints(temp_frame.claheMat, temp_frame.keypoints, temp_frame.baMat);
         // std::cout << detector->descriptorType() << "   " <<  detector->defaultNorm() << std::endl;
         // // keep only 3D keypoints
         // std::vector<cv::KeyPoint> filtered_frame_keypoints;
@@ -180,6 +214,8 @@ namespace app {
         int depth_idx = 0;
         const float z_thresh = 12000;
 
+        double max_depth = 0;
+
         for (int v = 0; v < 480; ++v)
         {
             for (int u = 0; u < 640; ++u, ++depth_idx)
@@ -196,7 +232,6 @@ namespace app {
                     pt.g = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[1];
                     pt.r = temp_frame.rgbMat.at<cv::Vec3b>(v,u)[2];
                 } else {
-                    
                     pt.x =
                     pt.y = 
                     pt.z = 
@@ -314,8 +349,8 @@ namespace app {
         cv::Mat I = temp_frame.depthMat;
         cv::Mat p = I;
 
-        int r = 2; // try r=2, 4, or 8
-        double eps = 0.2 * 0.2; // try eps=0.1^2, 0.2^2, 0.4^2
+        int r = 8; // try r=2, 4, or 8
+        double eps = 0.4 * 0.4; // try eps=0.1^2, 0.2^2, 0.4^2
 
         eps *= 255 * 255;   // Because the intensity range of our images is [0, 255]
 
@@ -385,6 +420,7 @@ namespace app {
 // algorithm!
                 Bench::start("cloud computation");
                 computePointCloud(temp_frame);
+                depthClipRgb(temp_frame);
                 Bench::stop("cloud computation");
 
 
@@ -394,11 +430,17 @@ namespace app {
 
                 // std::cout << "Currently processed cloud size: " << temp_frame.cloud->points.size() << std::endl;
 
+                // Bench::start("guided");
+                // guidedFilterDepth(temp_frame);
+                // Bench::stop("guided");
+
+
                 Bench::start("clahe");
+                // guidedFilterDepth(temp_frame);
                 computeClahe(temp_frame);
                 // temp_frame.claheMat  = temp_frame.rgbMat;
+                // bilateralFilter(temp_frame)
                 Bench::stop("clahe");
-
 
                 
                 computeKeypoints(temp_frame);
@@ -411,16 +453,19 @@ namespace app {
                 // frames_processed++;
 
 
+                {
+                    std::lock_guard<std::mutex> mutex_guard2(grabbed_frame_mutex);
+                    grabbed_frame.t2_done = true;
+                }
+
 
                 {
                     // lock currently processed frame
                     std::lock_guard<std::mutex> mutex_guard(processed_frame_mutex);
-                    std::lock_guard<std::mutex> mutex_guard2(grabbed_frame_mutex);
                     processed_frame = temp_frame;
                     // std::cout << "processor: " << temp_frame.x << std::endl;
                     processed_frame.processed = true;
                     processed_frame.t2_done = true;
-                    grabbed_frame.t2_done = true;
 
                 }
             }

@@ -20,6 +20,7 @@ namespace app {
         cv::Mat baMat;
         cv::Mat hsvMat;
         cv::Mat claheMat;
+        cv::Mat depthClipMask;
 
         std::vector<cv::KeyPoint> keypoints;
         cv::Mat descriptors;
@@ -57,6 +58,7 @@ namespace app {
                 baMat(cv::Size(640,480), CV_8UC1),
                 hsvMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
                 claheMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
+                depthClipMask(cv::Size(640, 480), CV_8U, cv::Scalar(0)),
                 generated(false),
                 processed(false),
                 matched(false),

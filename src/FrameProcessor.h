@@ -44,6 +44,7 @@ namespace app {
         void computeKeypoints(Frame & temp_frame);
         void computeDescriptors(Frame & temp_frame);
         void computeNormals(Frame & temp_frame);
+        void depthClipRgb(Frame & temp_frame);
 
         void run();
     };

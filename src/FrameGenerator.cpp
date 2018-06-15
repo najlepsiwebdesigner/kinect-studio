@@ -129,7 +129,7 @@ namespace app {
             OfflineDataSource offlineDataSource;
 
             while (offlineDataSource.getVideoAndDepth(video, depth)) {
-
+                Bench::start("offline generation");
                 if (!app::Application::is_running) break;
 
                 if (depth.cols == 0) {
@@ -170,7 +170,8 @@ namespace app {
                 i++;
 
                 // simulate som frame rate
-                std::this_thread::sleep_for(std::chrono::milliseconds(30));
+                std::this_thread::sleep_for(std::chrono::milliseconds(25));
+                Bench::stop("offline generation");
             }
 
             app::Application::stop();

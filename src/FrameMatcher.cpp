@@ -54,7 +54,7 @@ pcl::PointXYZRGB & getCloudPoint(pcl::PointCloud<pcl::PointXYZRGB> & my_pcl,  in
 
 
 Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & frame2) {
-    const int MAXIMAL_FEATURE_DISTANCE = 50;
+    const int MAXIMAL_FEATURE_DISTANCE = 35;
 
     // computeDescriptors(frame1);
 
@@ -71,10 +71,10 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     Mat & descriptors1 = frame1.descriptors;
     Mat & descriptors2 = frame2.descriptors;
 
-    // ORB, BRIEF, BRISF
+    // ORB, BRIEF, BRISK
     // cv::BFMatcher matcher(cv::NORM_HAMMING);
     // ORB special
-    cv::BFMatcher matcher(cv::NORM_HAMMING2);
+    cv::BFMatcher matcher(cv::NORM_HAMMING2, true);
     // SURF, SIFT
     // cv::BFMatcher matcher(cv::NORM_L1);
     // FLANN
@@ -93,9 +93,9 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     // std::cout << "desc2: " << descriptors2.rows << std::endl;
     // std::cout << "matches: " << matches.size() << std::endl;
 
-    std::vector<Vector3f> movement_vectors;
-    Vector3f average_movement_vector;
-    int number_of_matches = 0;
+    // std::vector<Vector3f> movement_vectors;
+    // Vector3f average_movement_vector;
+    // int number_of_matches = 0;
 
 
     // create feature point clouds
@@ -116,12 +116,20 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
     // std::cout << "size of feature cloud in new frame: " << frame1.feature_cloud->points.size() << std::endl;
 
+    std::vector<cv::DMatch> good_matches;
+
+
     for (int i = 0; i < matches.size(); i++) {
         bool is_good_match = false;
 
         Bench::count("match distance", matches[i].distance);
         
         if( matches[i].distance < MAXIMAL_FEATURE_DISTANCE) {
+            
+
+            good_matches.push_back(matches[i]);
+
+
             auto cvPoint1 = keypoints1[matches[i].queryIdx].pt;
             auto & cloudpoint1 = getCloudPoint(*cloud1, cvPoint1.x,cvPoint1.y);
             if (cloudpoint1.x == 0 && cloudpoint1.y == 0 && cloudpoint1.z == 0) continue;
@@ -151,6 +159,9 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
 
         // current_feature_cloud->points.push_back()
         
+
+        // frame1.baMat = frame1.baMat.clone();
+
         // std::cout << "Feature cloud 1 descriptors: " << feature_cloud1_descriptors.rows << std::endl;
 
     }
@@ -163,6 +174,7 @@ Eigen::Affine3f estimateVisualTransformation(app::Frame & frame1, app::Frame & f
     if (feature_cloud1->points.size() < 10) {
         cv::imwrite("/Volumes/rdisk/problem.png", frame1.depthMat);
         problem_image_counter++;
+        std::cout << problem_image_counter << std::endl;
         return Eigen::Affine3f::Identity();
     }
 
@@ -176,9 +188,9 @@ Bench::count("Good features", feature_cloud1->points.size());
 Bench::start("ransac");
 
 // RANSAC START
-    int max_iterations = 10000;
-    const int min_support = 5;
-    const float inlier_error_threshold = 60.0f;
+    int max_iterations = 1000;
+    const int min_support = 6;
+    const float inlier_error_threshold = 100.0f;
     const int pcount = feature_cloud1->points.size();
 
     // if (pcount < 6) {
@@ -193,6 +205,8 @@ Bench::start("ransac");
     std::vector<int> best_inliers;
 
     int ransac_number_of_iterations = 0;
+    double inlier_ratio_computed = 0;
+
     for(int k = 0; k < max_iterations; k++) {
         ransac_number_of_iterations = k;
 
@@ -250,16 +264,22 @@ Bench::start("ransac");
             best_inliers = inliers;
         }
 
-        if (((inliers.size() * 100) / pcount) > 50) {
+        if ( k > 50 && ((inliers.size() * 100) / pcount) > inlier_ratio_computed * 1.5) {
             break;
         }
+
+
         
+        inlier_ratio_computed = (((best_inliers.size() * 100) / pcount) + (k * inlier_ratio_computed)/(k+1));
+        // std::cout << inlier_ratio_computed << std::endl;
+
+
+
     }
 
     Bench::count("Inlier count", best_inliers.size());
     Bench::count("Ransac count", ransac_number_of_iterations);
     Bench::count("Ransac inlier ratio", ((best_inliers.size() * 100) / pcount));
-
 
     // float ratio 
     // std::cout << "Ratio: " <<  ((best_inliers.size() * 100) / pcount) << std::endl;
@@ -279,6 +299,8 @@ Bench::start("ransac");
 
         random_features1->points.push_back(cpoint1);
         random_features2->points.push_back(cpoint2);
+
+        Bench::count("inlier match distance", good_matches[i].distance);
     }
 
     estPtr.reset ( new pcl::registration::TransformationEstimationSVD < pcl::PointXYZRGB, pcl::PointXYZRGB > () );
@@ -290,30 +312,30 @@ Bench::start("ransac");
     // std::cout << "Features to ICP size: " << random_features1->points.size() << " " << random_features2->points.size() << std::endl;
 
     Bench::stop("ransac");
-    Bench::start("icp");
+    // Bench::start("icp");
 
-    // transform features1 with transformation from ransac and compute ICP
-    pcl::transformPointCloud( *random_features1, *random_features1, transformation_est );
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud_icp (new pcl::PointCloud<pcl::PointXYZRGB>);
-    int iterations = 10000;
-    pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
-    icp.setMaximumIterations(iterations);
-    icp.setInputSource (random_features1);
-    icp.setInputTarget (random_features2);
-    icp.setTransformationEpsilon (1e-3);
-    icp.setMaxCorrespondenceDistance (500);
-    icp.setEuclideanFitnessEpsilon (1);
-    icp.setRANSACOutlierRejectionThreshold (10);
-    icp.align(*transformed_cloud_icp);
+    // // transform features1 with transformation from ransac and compute ICP
+    // pcl::transformPointCloud( *feature_cloud1, *random_features1, transformation_est );
+    // pcl::PointCloud<pcl::PointXYZRGB>::Ptr transformed_cloud_icp (new pcl::PointCloud<pcl::PointXYZRGB>);
+    // int iterations = 30;
+    // pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+    // icp.setMaximumIterations(iterations);
+    // icp.setInputSource (random_features1);
+    // icp.setInputTarget (feature_cloud2);
+    // // icp.setTransformationEpsilon (1e-3);
+    // icp.setMaxCorrespondenceDistance (100);
+    // // icp.setEuclideanFitnessEpsilon (1);
+    // icp.setRANSACOutlierRejectionThreshold (3);
+    // icp.align(*transformed_cloud_icp);
 
-    if (icp.hasConverged ()){
-        // std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
-        // std::cout << "\nICP transformation " << iterations << " : cloud_icp -> cloud_in" << std::endl;
-        auto transformation_icp = icp.getFinalTransformation();
-        transformation_est *= transformation_icp;
-    }
+    // if (icp.hasConverged ()){
+    //     // std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
+    //     // std::cout << "\nICP transformation " << iterations << " : cloud_icp -> cloud_in" << std::endl;
+    //     auto transformation_icp = icp.getFinalTransformation();
+    //     transformation_est = transformation_est * transformation_icp;
+    // }
 
-    Bench::stop("icp");
+    // Bench::stop("icp");
 
 
 
@@ -413,6 +435,7 @@ void app::FrameMatcher::run() {
                         Bench::stop("frame prediction");
                     } else {
                         tmp_frame = previous_frame;
+                        std::cout << "using previous frame" << std::endl;
                     }
                 
                     // algorithm    
@@ -431,7 +454,11 @@ void app::FrameMatcher::run() {
                             processed_frame.t3_done = true;
                         }
 
-
+                        map_model.is_ready = false;
+                        // std::cout << temp_frame.keypoints.size() << std::endl;
+                        if (temp_frame.keypoints.size() > 5) {
+                            previous_frame = temp_frame;
+                        }
                         continue;
                     }
 
@@ -461,13 +488,17 @@ void app::FrameMatcher::run() {
             // std::cout << "Matcher frames processed: " << frames_processed << std::endl;
 
             {
+                std::lock_guard<std::mutex> mutex_guard2(processed_frame_mutex);
+                processed_frame.t3_done = true;
+            }
+
+            {
                 // lock currently processed frame
                 std::lock_guard<std::mutex> mutex_guard(matched_frame_mutex);
-                std::lock_guard<std::mutex> mutex_guard2(processed_frame_mutex);
+                
                 matched_frame = temp_frame;
                 // std::cout << "frame matcher: " << temp_frame.x << std::endl;
                 matched_frame.t3_done = true;
-                processed_frame.t3_done = true;
                 previous_frame = matched_frame;
 
             }

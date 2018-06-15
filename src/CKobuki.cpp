@@ -265,7 +265,7 @@ int CKobuki::measure()
         unsigned char *message = readKobukiMessage();
         if (message == NULL)
         {
-            printf("vratil null message\n");
+            // printf("vratil null message\n");
             continue;
         }
         int ok=parseKobukiMessage(data,message);
@@ -611,11 +611,11 @@ void CKobuki::goStraight(long double distance){
     long double w_translation = distance; // pozadovana hodnota
 
     // parametre regulatora
-    long double Kp_translation = 4000;
+    long double Kp_translation = 2500;
     long double e_translation = 0;
-    int upper_thresh_translation = 300;
-    int lower_thresh_translation = 60;
-    int translation_start_gain = 30;
+    int upper_thresh_translation = 200;
+    int lower_thresh_translation = 55;
+    int translation_start_gain = 10;
 
     long double u_rotation = 0; // riadena velicina
     long double w_rotation = 0;
@@ -628,39 +628,87 @@ void CKobuki::goStraight(long double distance){
 
     long i = 1;
 
-    while (fabs(x - w_translation) > 0.01 && x<w_translation) {
-        e_translation = w_translation - x;
-        u_translation = Kp_translation * e_translation;
 
-        e_rotation = w_rotation - theta;
-        if (!e_rotation == 0) u_rotation = Kp_rotation / e_rotation;
+    if (distance > 0) {
+        while (fabs(x - w_translation) > 0.01 && x < w_translation) {
+            e_translation = w_translation - x;
+            u_translation = Kp_translation * e_translation;
+
+            e_rotation = w_rotation - theta;
+            if (!e_rotation == 0) u_rotation = Kp_rotation / e_rotation;
 
 
-        // limit translation speed
-        if (u_translation > upper_thresh_translation)
-            u_translation = upper_thresh_translation;
-        if (u_translation < lower_thresh_translation)
-            u_translation = lower_thresh_translation;
+            // limit translation speed
+            if (u_translation > upper_thresh_translation)
+                u_translation = upper_thresh_translation;
+            if (u_translation < lower_thresh_translation)
+                u_translation = lower_thresh_translation;
 
-        // rewrite starting speed with line
-        if (i < u_translation) {
-            u_translation = i;
+            // rewrite starting speed with line
+            if (i < u_translation) {
+                u_translation = i;
+            }
+
+            if (fabs(u_rotation) > 32767) {
+                u_rotation = -32767;
+            }
+
+            if (u_rotation == 0) {
+                u_rotation = -32767;
+            }
+
+            this->setArcSpeed(u_translation, u_rotation);
+
+            usleep(25*1000);
+            // increment starting speed
+            i = i + translation_start_gain;
+        }
+    } else if (distance < 0) {
+
+        while (fabs(x - w_translation) > 0.01 && x > w_translation) {
+            e_translation = w_translation - x;
+            u_translation = Kp_translation * e_translation;
+
+
+            // std::cout << theta << std::endl;
+
+            e_rotation = theta - w_rotation;
+            if (!e_rotation == 0) u_rotation = Kp_rotation / e_rotation;
+
+            // std::cout << u_translation << std::endl;
+
+            // limit translation speed
+            if (u_translation < upper_thresh_translation * -1)
+                u_translation = upper_thresh_translation * -1;
+            if (u_translation > lower_thresh_translation * -1)
+                u_translation = lower_thresh_translation * -1;
+
+            // rewrite starting speed with line
+            if (i < u_translation) {
+                u_translation = i * -1;
+            }
+
+            if (fabs(u_rotation) > 32767) {
+                u_rotation = -32767;
+            }
+
+            if (u_rotation == 0) {
+                u_rotation = -32767;
+            }
+
+            // std::cout << fabs(x - w_translation) << " " << u_rotation << std::endl;
+
+            this->setArcSpeed(u_translation, u_rotation);
+
+            usleep(25*1000);
+            // increment starting speed
+            i = i + translation_start_gain;
         }
 
-        if (fabs(u_rotation) > 32767) {
-            u_rotation = -32767;
-        }
 
-        if (u_rotation == 0) {
-            u_rotation = -32767;
-        }
 
-        this->setArcSpeed(u_translation, u_rotation);
-
-        usleep(25*1000);
-        // increment starting speed
-        i = i + translation_start_gain;
     }
+
     this->setTranslationSpeed(0);
 }
 
@@ -673,7 +721,7 @@ void CKobuki::doRotation(long double th) {
     long double w = th; // pozadovana hodnota v radianoch
     long double Kp = PI/2;
     long double e = 0;
-    int thresh = PI*0.3;
+    int thresh = PI*0.2;
 
     theta = 0;
     x = 0;
