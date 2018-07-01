@@ -36,6 +36,7 @@ namespace app {
         long double prevY = 0;
         long double prevTheta = 0;
 
+        std::this_thread::sleep_for(std::chrono::milliseconds(3000));
 
         if (!options.offline) {
             // while we have frames
@@ -142,6 +143,9 @@ namespace app {
                 frame.rgbMat = video.clone();
                 frame.depthMat = depth.clone();
 
+
+                if (frame.rgbMat.cols < 1 || frame.rgbMat.rows < 1) continue;
+                if (frame.depthMat.cols < 1 || frame.depthMat.rows < 1) continue;
                 // std::cout << frame.depthMat.total() << " " << cv::countNonZero(frame.depthMat) << std::endl;
 
 
@@ -153,7 +157,7 @@ namespace app {
 
                 // Compute odometry transformation
                 Eigen::Affine3f transform = Eigen::Affine3f::Identity();
-                transform.translation() << frame.y*1000, 0.0,frame.x*1000;
+                transform.translation() << frame.y * 1000, 0.0,frame.x * 1000;
                 transform.rotate (Eigen::AngleAxisf (frame.theta, Eigen::Vector3f::UnitY()));
                 frame.transform_odometry = transform;
 
@@ -170,10 +174,11 @@ namespace app {
                 i++;
 
                 // simulate som frame rate
-                std::this_thread::sleep_for(std::chrono::milliseconds(25));
+                std::this_thread::sleep_for(std::chrono::milliseconds(23));
                 Bench::stop("offline generation");
             }
 
+            std::this_thread::sleep_for(std::chrono::milliseconds(3000));
             app::Application::stop();
 
             std::cout << "Generator thread exitting.." << std::endl;

@@ -2,7 +2,7 @@
 #define MAPMODEL_H
 
 #include "globals.h"
-
+#include "Bench.h"
 #include <pcl/common/transforms.h>
 
 using namespace app;
@@ -96,6 +96,7 @@ public:
 		camera_poses.push_back(frame.transform_visual);
 		camera_poses_to_indices.push_back(inserted_feature_indices);
 
+
 		if (!is_ready) is_ready = true;
 	}
 
@@ -136,7 +137,7 @@ public:
 
 		// std::cout << feature_point_indices.size() << std::endl;
 		// select last 30 poses, if available
-		int used_previous_poses_count = 10;
+		int used_previous_poses_count = 1;
 		int used_frames_count = (camera_poses.size() > used_previous_poses_count ? used_previous_poses_count : camera_poses.size());
 		for (int i = camera_poses.size() - 1; i > camera_poses.size() - used_frames_count && i > 0; i=i-2) {
 			feature_point_indices.insert(
@@ -194,10 +195,15 @@ public:
 		// std::cout << "multi hit indices count: " << good_indices_counter << std::endl;
 		// bool only_multi_features = good_indices_counter > 0;
 
-// std::cout << "feature point in predicted frame count: " <<  feature_point_indices.size() << std::endl;
+int before = feature_point_indices.size();
 sort( feature_point_indices.begin(), feature_point_indices.end() );
 feature_point_indices.erase( unique( feature_point_indices.begin(), feature_point_indices.end() ), feature_point_indices.end() );
-// std::cout << "feature point in predicted frame  after reduction count: " <<  feature_point_indices.size() << std::endl;
+int after = feature_point_indices.size();
+
+// std::cout << "feature point in predicted frame  after reduction ratio " <<  ((after * 100) / before) << std::endl;
+
+Bench::count("Local map model reduction: ", ((after * 100) / before) );
+
 
 		for (int i = 0; i < feature_point_indices.size(); i++) {
 			// if (only_multi_features && indices_hit_count[feature_point_indices[i]] < 1 && i % 2 == 0) continue; 

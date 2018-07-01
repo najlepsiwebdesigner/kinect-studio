@@ -264,19 +264,23 @@ Bench::start("ransac");
             best_inliers = inliers;
         }
 
-        if ( k > 50 && ((inliers.size() * 100) / pcount) > inlier_ratio_computed * 1.5) {
+        if ( k > 60 && ((inliers.size() * 100) / pcount) >  (inlier_ratio_computed)) {
             break;
         }
 
 
-        
-        inlier_ratio_computed = (((best_inliers.size() * 100) / pcount) + (k * inlier_ratio_computed)/(k+1));
-        // std::cout << inlier_ratio_computed << std::endl;
+        // if (((inliers.size() * 100) / pcount) > 95) break;
+
+        if (k < 60) {
+            inlier_ratio_computed = ((((best_inliers.size() * 100) / pcount) + (k * inlier_ratio_computed))/(k+1));
+        }
+        // std::cout << ((inliers.size() * 100) / pcount) << " " << inlier_ratio_computed << std::endl;
 
 
 
     }
 
+    Bench::count("inlier ratio computed", inlier_ratio_computed);
     Bench::count("Inlier count", best_inliers.size());
     Bench::count("Ransac count", ransac_number_of_iterations);
     Bench::count("Ransac inlier ratio", ((best_inliers.size() * 100) / pcount));

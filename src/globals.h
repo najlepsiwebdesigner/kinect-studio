@@ -18,7 +18,11 @@
 
 #include "Bench.h"
 
+#define SENSOR_WIDTH 640
+#define SENSOR_HEIGHT 480
+
 #include "Frame.h"
+
 
 
 void sobel(cv::Mat & src_gray);

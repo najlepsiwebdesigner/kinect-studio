@@ -40,8 +40,8 @@ namespace app {
         // temp_frame.rgbMat.copyTo(temp_frame.baMat);
         int depth_idx = 0;
         int white_count = 0;
-        for (int v = 0; v < 480; ++v) {
-            for (int u = 0; u < 640; ++u, ++depth_idx) {
+        for (int v = 0; v < SENSOR_HEIGHT; ++v) {
+            for (int u = 0; u < SENSOR_WIDTH; ++u, ++depth_idx) {
                 // std::cout << temp_frame.depthMat.at<uint16_t>(v,u) << std::endl;
                 if (temp_frame.depthMat.at<uint16_t>(v,u)  == 0 
                     // || temp_frame.depthMat.at<uint16_t>(v,u) > 11000
@@ -75,7 +75,7 @@ namespace app {
        
         // Ptr<AKAZE> detector = AKAZE::create(AKAZE::DESCRIPTOR_MLDB,486,3, 0.0015f,2,2);
        
-        Ptr<ORB> detector = ORB::create(500, 2, 2);
+        Ptr<ORB> detector = ORB::create(500, 2, 4);
         // Ptr<ORB> detector = ORB::create();
         
         // Ptr<SIFT> detector = SIFT::create();
@@ -202,23 +202,29 @@ namespace app {
     /// ### compute pointcloud
     void FrameProcessor::computePointCloud(Frame & temp_frame) {
 
-        temp_frame.cloud->width = 640;
-        temp_frame.cloud->height = 480;
-        temp_frame.cloud->points.resize (640*480);
+        temp_frame.cloud->width = SENSOR_WIDTH;
+        temp_frame.cloud->height = SENSOR_HEIGHT;
+        temp_frame.cloud->points.resize (SENSOR_WIDTH*SENSOR_HEIGHT);
         temp_frame.cloud->is_dense = false;
 
         const float focalLength = 525;
         const float centerX = 319.5;
         const float centerY = 239.5;
+
+
+        // const float focalLength = 262.5;
+        // const float centerX = 159.75;
+        // const float centerY = 119.75;
+
         const float scalingFactor = 1; //5000.0;
         int depth_idx = 0;
         const float z_thresh = 12000;
 
         double max_depth = 0;
 
-        for (int v = 0; v < 480; ++v)
+        for (int v = 0; v < SENSOR_HEIGHT; ++v)
         {
-            for (int u = 0; u < 640; ++u, ++depth_idx)
+            for (int u = 0; u < SENSOR_WIDTH; ++u, ++depth_idx)
             {
                 pcl::PointXYZRGB & pt = temp_frame.cloud->points[depth_idx];
 
@@ -247,9 +253,9 @@ namespace app {
 
     void FrameProcessor::computePointCloudWithNormals(Frame & temp_frame) {
         pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr cloud_ptr(new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-        cloud_ptr->width = 640;
-        cloud_ptr->height = 480;
-        cloud_ptr->points.resize (640*480);
+        cloud_ptr->width = SENSOR_WIDTH;
+        cloud_ptr->height = SENSOR_HEIGHT;
+        cloud_ptr->points.resize (SENSOR_WIDTH*SENSOR_HEIGHT);
 
         const float focalLength = 525;
         const float centerX = 319.5;
@@ -258,9 +264,9 @@ namespace app {
         int depth_idx = 0;
         const float z_thresh = 8000;
 
-        for (int v = 0; v < 480; ++v)
+        for (int v = 0; v < SENSOR_HEIGHT; ++v)
         {
-            for (int u = 0; u < 640; ++u, ++depth_idx)
+            for (int u = 0; u < SENSOR_WIDTH; ++u, ++depth_idx)
             {
                 pcl::PointXYZRGBNormal & pt = cloud_ptr->points[depth_idx];
 

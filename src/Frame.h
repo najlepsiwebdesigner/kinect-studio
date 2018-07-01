@@ -10,7 +10,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include "opencv2/features2d.hpp"
 #include "opencv2/xfeatures2d.hpp"
-
+#include "globals.h"
 
 namespace app {
     class Frame {
@@ -53,12 +53,12 @@ namespace app {
         Eigen::Affine3f transform_visual;
 
         Frame() :
-                rgbMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
-                depthMat(cv::Size(640, 480), CV_16UC1),
-                baMat(cv::Size(640,480), CV_8UC1),
-                hsvMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
-                claheMat(cv::Size(640, 480), CV_8UC3, cv::Scalar(0)),
-                depthClipMask(cv::Size(640, 480), CV_8U, cv::Scalar(0)),
+                rgbMat(cv::Size(SENSOR_WIDTH, SENSOR_HEIGHT), CV_8UC3, cv::Scalar(0)),
+                depthMat(cv::Size(SENSOR_WIDTH, SENSOR_HEIGHT), CV_16UC1),
+                baMat(cv::Size(SENSOR_WIDTH,SENSOR_HEIGHT), CV_8UC1),
+                hsvMat(cv::Size(SENSOR_WIDTH, SENSOR_HEIGHT), CV_8UC3, cv::Scalar(0)),
+                claheMat(cv::Size(SENSOR_WIDTH, SENSOR_HEIGHT), CV_8UC3, cv::Scalar(0)),
+                depthClipMask(cv::Size(SENSOR_WIDTH, SENSOR_HEIGHT), CV_8U, cv::Scalar(0)),
                 generated(false),
                 processed(false),
                 matched(false),

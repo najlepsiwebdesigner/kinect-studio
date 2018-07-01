@@ -207,21 +207,21 @@ void app::Application::start(int argc, char** argv) {
        // robot.goStraight(-1);
 
 
-       std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+       // std::this_thread::sleep_for(std::chrono::milliseconds(5000));
        // robot.doRotation(10*PI);
 
 
-        for (int i = 0; i < 10; i++) {
-            robot.goStraight(2); 
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));            
-            robot.goStraight(-2); 
-            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            std::cout << i << std::endl;
-        }
+        // for (int i = 0; i < 10; i++) {
+        //     robot.goStraight(2); 
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));            
+        //     robot.goStraight(-2); 
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        //     std::cout << i << std::endl;
+        // }
        
 
 
-        Application::is_running = false;        
+        // Application::is_running = false;        
 
 
        // std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -422,14 +422,14 @@ void app::Application::start(int argc, char** argv) {
 
             if (options.show_3D) {
                 // add current camera positions from visual and odometry 
-                // std::string sphere_name = "sphere_odometry_";
-                // sphere_name += std::to_string(frames_processed);
-                // sphere_names.push_back(sphere_name);
-                // viewer->addSphere(camera_pose_odometry, 20, 0, 255, 0, sphere_name);
-                // sphere_name = "sphere_visual_";
-                // sphere_name += std::to_string(frames_processed);
-                // sphere_names.push_back(sphere_name);
-                // viewer->addSphere(camera_pose_visual, 20, 255, 0, 0, sphere_name);
+                std::string sphere_name = "sphere_odometry_";
+                sphere_name += std::to_string(frames_processed);
+                sphere_names.push_back(sphere_name);
+                viewer->addSphere(camera_pose_odometry, 20, 0, 255, 0, sphere_name);
+                sphere_name = "sphere_visual_";
+                sphere_name += std::to_string(frames_processed);
+                sphere_names.push_back(sphere_name);
+                viewer->addSphere(camera_pose_visual, 20, 255, 0, 0, sphere_name);
                 // end camera poses!
 
                 if (frames_processed % 5 == 0){
@@ -463,7 +463,7 @@ void app::Application::start(int argc, char** argv) {
 
             if (options.show2D) {
                 // // main CV visualization loop, has to be placed in main thread due to plc and opencv's restrictions
-                cv::Mat depthf(cv::Size(640, 480), CV_8UC1);
+                cv::Mat depthf(cv::Size(SENSOR_WIDTH, SENSOR_HEIGHT), CV_8UC1);
                 temp_frame.depthMat.convertTo(depthf, CV_8UC1, 255.0 / 2048.0);
 
                 cv::imshow("Video", temp_frame.claheMat);
@@ -496,6 +496,8 @@ void app::Application::start(int argc, char** argv) {
         }
 
     }
+
+
 
     // p.plot_data(vectorY, vectorX);
     // std::string out;
